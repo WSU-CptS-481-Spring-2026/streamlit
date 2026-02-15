@@ -871,6 +871,118 @@ describe("CustomCodeTag Element", () => {
     render(<CustomCodeTag {...props} />)
     expect(screen.getByTestId("stCode")).toHaveTextContent(expected)
   })
+
+  describe("hex color indicator", () => {
+    it("should render a colored dot for valid 6-digit hex colors", () => {
+      const props = getCustomCodeTagProps({
+        children: "#0969DA",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.getByTestId("hex-color-dot")
+      expect(hexColorDot).toBeVisible()
+      expect(hexColorDot).toHaveStyle({
+        backgroundColor: "#0969DA",
+      })
+    })
+
+    it("should render a colored dot for valid 3-digit hex colors", () => {
+      const props = getCustomCodeTagProps({
+        children: "#F00",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.getByTestId("hex-color-dot")
+      expect(hexColorDot).toBeVisible()
+      expect(hexColorDot).toHaveStyle({
+        backgroundColor: "#F00",
+      })
+    })
+
+    it("should render a colored dot for uppercase hex colors", () => {
+      const props = getCustomCodeTagProps({
+        children: "#FF5733",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.getByTestId("hex-color-dot")
+      expect(hexColorDot).toBeVisible()
+      expect(hexColorDot).toHaveStyle({
+        backgroundColor: "#FF5733",
+      })
+    })
+
+    it("should not render a colored dot for non-hex inline code", () => {
+      const props = getCustomCodeTagProps({
+        children: "not_a_color",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.queryByTestId("hex-color-dot")
+      expect(hexColorDot).not.toBeInTheDocument()
+    })
+
+    it("should not render a colored dot for invalid hex colors", () => {
+      const props = getCustomCodeTagProps({
+        children: "#GGGGGG",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.queryByTestId("hex-color-dot")
+      expect(hexColorDot).not.toBeInTheDocument()
+    })
+
+    it("should not render a colored dot for code blocks (non-inline)", () => {
+      const props = getCustomCodeTagProps({
+        children: "#0969DA",
+        inline: false,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.queryByTestId("hex-color-dot")
+      expect(hexColorDot).not.toBeInTheDocument()
+    })
+
+    it("should mark the colored dot as aria-hidden for accessibility", () => {
+      const props = getCustomCodeTagProps({
+        children: "#0969DA",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.getByTestId("hex-color-dot")
+      expect(hexColorDot).toHaveAttribute("aria-hidden", "true")
+    })
+
+    it("should handle hex colors with leading/trailing whitespace", () => {
+      const props = getCustomCodeTagProps({
+        children: "  #0969DA  ",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      const hexColorDot = screen.getByTestId("hex-color-dot")
+      expect(hexColorDot).toBeVisible()
+      expect(hexColorDot).toHaveStyle({
+        backgroundColor: "#0969DA",
+      })
+    })
+
+    it("should still render the hex color text alongside the dot", () => {
+      const props = getCustomCodeTagProps({
+        children: "#0969DA",
+        inline: true,
+      })
+      render(<CustomCodeTag {...props} />)
+
+      expect(screen.getByText("#0969DA")).toBeVisible()
+    })
+  })
 })
 
 describe("CustomPreTag", () => {

@@ -446,3 +446,24 @@ export const StyledHelpIconWrapper = styled.span({
   verticalAlign: "middle",
   transform: "translateY(-0.1em)",
 })
+
+export interface StyledHexColorDotProps {
+  hexColor: string
+}
+
+/**
+ * Renders a colored circle to visualize hex color codes.
+ * Used in inline code to match GitHub's hex color indicator behavior.
+ */
+export const StyledHexColorDot = styled.span<StyledHexColorDotProps>(
+  ({ hexColor }) => ({
+    display: "inline-block",
+    width: "0.75em",
+    height: "0.75em",
+    borderRadius: "50%",
+    backgroundColor: hexColor,
+    border: "1px solid rgba(0, 0, 0, 0.1)",
+    marginRight: "0.25em",
+    verticalAlign: "middle",
+  })
+)

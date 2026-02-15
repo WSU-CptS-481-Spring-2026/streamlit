@@ -23,6 +23,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   _resetCacheForTesting,
   extractPlugin,
+  isHexColor,
   isLoadedPlugin,
   LOAD_FAILED,
   type PluginState,
@@ -34,6 +35,57 @@ import {
 // Reset the module-level cache between tests to ensure isolation
 afterEach(() => {
   _resetCacheForTesting()
+})
+
+describe("isHexColor", () => {
+  describe("valid 6-digit hex colors", () => {
+    it.each([
+      "#0969DA",
+      "#FF5733",
+      "#000000",
+      "#FFFFFF",
+      "#123456",
+      "#abcdef", // Lowercase
+      "#ABCDEF", // Uppercase
+      "#AaBbCc", // Mixed case
+    ])("returns true for %s", color => {
+      expect(isHexColor(color)).toBe(true)
+    })
+  })
+
+  describe("valid 3-digit hex colors", () => {
+    it.each([
+      "#F00",
+      "#0F0",
+      "#00F",
+      "#ABC",
+      "#abc", // Lowercase
+      "#FFF",
+      "#000",
+      "#AaB", // Mixed case
+    ])("returns true for %s", color => {
+      expect(isHexColor(color)).toBe(true)
+    })
+  })
+
+  describe("invalid hex colors", () => {
+    it.each([
+      "#GGGGGG", // Invalid characters
+      "#12", // Too short
+      "#12345", // Wrong length
+      "#1234567", // Too long
+      "0969DA", // Missing #
+      "#", // Just hash
+      "not-a-color", // Regular text
+      "#0969D", // 5 digits
+      "# 0969DA", // Space after hash
+      "#FF FF33", // Space in middle
+      "", // Empty string
+      "#ff gg hh", // Invalid format with spaces
+    ])("returns false for %s", color => {
+      expect(isHexColor(color)).toBe(false)
+    })
+  })
 })
 
 describe("LOAD_FAILED", () => {

@@ -22,6 +22,26 @@ import type { Root as MdastRoot } from "mdast"
 import type { VFile } from "vfile"
 
 /**
+ * Detects if a string is a valid CSS hex color code.
+ * Supports both 3-digit (#RGB) and 6-digit (#RRGGBB) hex color formats.
+ * Comparison is case-insensitive.
+ *
+ * @param str - The string to test for hex color validity
+ * @returns true if the string is a valid hex color, false otherwise
+ *
+ * @example
+ * isHexColor("#0969DA") // true
+ * isHexColor("#F00") // true
+ * isHexColor("#GGGGGG") // false
+ * isHexColor("not-hex") // false
+ *
+ * Regex help from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions.
+ */
+export function isHexColor(str: string): boolean {
+  return /^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?$/.test(str)
+}
+
+/**
  * Plugin type aliases derived from dynamic imports.
  * These represent the actual plugin functions after module resolution.
  */
