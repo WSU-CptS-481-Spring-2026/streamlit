@@ -70,12 +70,14 @@ import {
   StyledHeadingActionElements,
   StyledHeadingWithActionElements,
   StyledHelpIconWrapper,
+  StyledHexColorDot,
   StyledLinkIcon,
   StyledPreWrapper,
   StyledStreamlitMarkdown,
 } from "./styled-components"
 import {
   type EmojiPlugin,
+  isHexColor,
   isLoadedPlugin,
   type KatexPlugin,
   loadKatexPlugin,
@@ -449,6 +451,8 @@ export type CustomCodeTagProps = JSX.IntrinsicElements["code"] &
 
 /**
  * Renders code tag with highlighting based on requested language.
+ * For inline code containing valid hex colors, renders
+ * a colored dot before the text to visualize the color (matching GitHub's behavior).
  */
 export const CustomCodeTag: FC<CustomCodeTagProps> = ({
   inline,
@@ -463,6 +467,10 @@ export const CustomCodeTag: FC<CustomCodeTagProps> = ({
     .replace(/\n$/, "")
 
   const language = match?.[1] || ""
+
+  // For inline code, check if the text is a valid hex color and render dot
+  const showHexColorDot = inline && isHexColor(codeText.trim())
+
   return !inline ? (
     <ErrorBoundary>
       <Suspense
@@ -484,6 +492,13 @@ export const CustomCodeTag: FC<CustomCodeTagProps> = ({
     </ErrorBoundary>
   ) : (
     <StyledInlineCode className={className} {...omit(props, "node")}>
+      {showHexColorDot && (
+        <StyledHexColorDot
+          hexColor={codeText.trim()}
+          aria-hidden="true"
+          data-testid="hex-color-dot"
+        />
+      )}
       {children}
     </StyledInlineCode>
   )
