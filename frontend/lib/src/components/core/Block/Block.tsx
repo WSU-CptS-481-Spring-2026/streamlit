@@ -171,21 +171,25 @@ export const FlexBoxContainer = (
     subElement: getLayoutSubElement(props.node.deltaBlock),
   })
 
+  // Support both enum and pixel gap from proto
+  let gapValue: streamlit.GapSize | number = streamlit.GapSize.SMALL
+  const gapConfig = props.node.deltaBlock.flexContainer?.gapConfig
+
+  if (gapConfig) {
+    if (gapConfig.pixelGap != null && gapConfig.pixelGap > 0) {
+      gapValue = gapConfig.pixelGap
+    } else if (gapConfig.gapSize != null) {
+      gapValue = gapConfig.gapSize
+    }
+  }
+
   const styles = {
-    gap:
-      // This is backwards compatible with old proto messages since previously
-      // the gap size was defaulted to small.
-      props.node.deltaBlock.flexContainer?.gapConfig?.gapSize ??
-      streamlit.GapSize.SMALL,
+    gap: gapValue,
     direction: direction,
-    // This is also backwards compatible since previously wrap was not added
-    // to the flex container.
     $wrap: props.node.deltaBlock.flexContainer?.wrap ?? false,
     overflow: layout_styles.overflow,
     border: getBorderBackwardsCompatible(props.node.deltaBlock),
-    // We need the height on the container for scrolling.
     height: layout_styles.height,
-    // Flex properties are set on the LayoutWrapper.
     flex: "1",
     align: props.node.deltaBlock.flexContainer?.align,
     justify: props.node.deltaBlock.flexContainer?.justify,

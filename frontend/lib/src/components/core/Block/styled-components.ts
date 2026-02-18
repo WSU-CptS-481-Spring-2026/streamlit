@@ -24,10 +24,18 @@ import { StyledCheckbox } from "~lib/components/widgets/Checkbox/styled-componen
 import { EmotionTheme, STALE_STYLES } from "~lib/theme"
 import { assertNever } from "~lib/util/assertNever"
 
+// Accepts either a GapSize enum or a pixel value
 function translateGapWidth(
-  gap: streamlit.GapSize | undefined,
+  gap: streamlit.GapSize | number | undefined,
   theme: EmotionTheme
 ): string {
+  if (
+    typeof gap === "number" &&
+    !Object.values(streamlit.GapSize).includes(gap)
+  ) {
+    // If not a GapSize enum, treat as pixel value
+    return `${gap}px`
+  }
   switch (gap) {
     case streamlit.GapSize.XXSMALL:
       return theme.spacing.twoXS
@@ -238,11 +246,8 @@ const getJustifyContent = (
 
 export interface StyledFlexContainerBlockProps {
   direction: React.CSSProperties["flexDirection"]
-  gap?: streamlit.GapSize | undefined
+  gap?: streamlit.GapSize | number | undefined
   flex?: React.CSSProperties["flex"]
-  // This marks the prop as a transient property so it is
-  // not passed to the DOM. It overlaps with a valid attribute
-  // so passing it to the DOM will cause an error in the console.
   $wrap?: boolean
   height?: React.CSSProperties["height"]
   border: boolean

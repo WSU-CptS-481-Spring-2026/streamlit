@@ -160,6 +160,13 @@ describe("FlexBoxContainer Block Component", () => {
 })
 
 describe("FlexBoxContainer layout props", () => {
+  it("should apply integer (pixel) gap value", () => {
+    const block: BlockNode = makeVerticalBlock([], {
+      flexContainer: { gapConfig: { pixelGap: 12 } },
+    })
+    renderWithContexts(makeVerticalBlockComponent(block))
+    expect(screen.getByTestId("stVerticalBlock")).toHaveStyle("gap: 12px;")
+  })
   it.each([
     [
       "align: start",
