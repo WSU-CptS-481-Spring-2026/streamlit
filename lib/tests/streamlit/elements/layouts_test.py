@@ -34,6 +34,47 @@ from tests.streamlit.elements.layout_test_utils import WidthConfigFields
 
 
 class ColumnsTest(DeltaGeneratorTestCase):
+    def test_columns_with_integer_gap(self):
+        """Test that it works correctly with integer (pixel) gap argument"""
+        st.columns(3, gap=24)
+
+        all_deltas = self.get_all_deltas_from_queue()
+
+        horizontal_container = all_deltas[0]
+        columns_blocks = all_deltas[1:4]
+
+        # 4 elements will be created: 1 horizontal block, 3 columns, each receives pixel gap
+        assert len(all_deltas) == 4
+        assert (
+            horizontal_container.add_block.flex_container.gap_config.WhichOneof(
+                "gap_spec"
+            )
+            == "pixel_gap"
+        )
+        assert horizontal_container.add_block.flex_container.gap_config.pixel_gap == 24
+
+        for col_block in columns_blocks:
+            assert (
+                col_block.add_block.column.gap_config.WhichOneof("gap_spec")
+                == "pixel_gap"
+            )
+            assert col_block.add_block.column.gap_config.pixel_gap == 24
+
+    def test_container_with_integer_gap(self):
+        """Test that st.container supports integer (pixel) gap argument"""
+        with st.container(gap=16):
+            st.write("Inside container")
+
+        all_deltas = self.get_all_deltas_from_queue()
+
+        # The first block is the container
+        container_block = all_deltas[0]
+        assert (
+            container_block.add_block.flex_container.gap_config.WhichOneof("gap_spec")
+            == "pixel_gap"
+        )
+        assert container_block.add_block.flex_container.gap_config.pixel_gap == 16
+
     """Test columns."""
 
     def test_equal_width_columns(self):
