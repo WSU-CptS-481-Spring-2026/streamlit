@@ -27,6 +27,9 @@ import { render, renderWithContexts } from "~lib/test_util"
 import { getThemeBackgroundColors } from "~lib/theme/getColors"
 import { colors } from "~lib/theme/primitives/colors"
 
+import { render, screen } from "@testing-library/react"
+import { CustomShimmerSpan, RenderedMarkdown } from "./StreamlitMarkdown"
+
 import StreamlitMarkdown, {
   containsEmojiShortcodes,
   containsMathSyntax,
@@ -94,6 +97,28 @@ describe("createAnchorFromText", () => {
     ["___", "647ce586"],
   ])("converts '%s' to '%s'", (input, expected) => {
     expect(createAnchorFromText(input)).toEqual(expected)
+  })
+})
+
+describe("CustomShimmerSpan", () => {
+  it("renders children inside a span", () => {
+    render(<CustomShimmerSpan>Loading...</CustomShimmerSpan>)
+    expect(screen.getByText("Loading...")).toBeInTheDocument()
+  })
+
+  it("applies the stMarkdownShimmer data-testid", () => {
+    render(<CustomShimmerSpan>test</CustomShimmerSpan>)
+    expect(screen.getByTestId("stMarkdownShimmer")).toBeInTheDocument()
+  })
+
+  it("sets aria-label to the string children value for accessibility", () => {
+    render(<CustomShimmerSpan>Fetching results</CustomShimmerSpan>)
+    expect(screen.getByLabelText("Fetching results")).toBeInTheDocument()
+  })
+
+  it("renders without children without crashing", () => {
+    render(<CustomShimmerSpan />)
+    expect(screen.getByTestId("stMarkdownShimmer")).toBeInTheDocument()
   })
 })
 
@@ -343,6 +368,95 @@ describe("linkReference", () => {
       "Don't convert to a link if only [text] and missing (href)"
     )
     expect(element instanceof HTMLAnchorElement).toBe(false)
+  })
+})
+
+describe(":shimmer[] markdown directive", () => {
+  const renderMd = (source: string) =>
+    render(<RenderedMarkdown source={source} allowHTML={false} />)
+
+  it("renders :shimmer[text] as an animated shimmer span", () => {
+    renderMd(":shimmer[Loading...]")
+    expect(screen.getByTestId("stMarkdownShimmer")).toHaveTextContent(
+      "Loading..."
+    )
+  })
+
+  it("renders shimmer inline within a sentence", () => {
+    renderMd("Status: :shimmer[fetching data] please wait.")
+    expect(screen.getByText("fetching data")).toBeInTheDocument()
+    // surrounding text is still present
+    expect(screen.getByText(/please wait/)).toBeInTheDocument()
+  })
+
+  it("renders multiple shimmer directives independently", () => {
+    renderMd(":shimmer[First] and :shimmer[Second]")
+    const nodes = screen.getAllByTestId("stMarkdownShimmer")
+    expect(nodes).toHaveLength(2)
+    expect(nodes[0]).toHaveTextContent("First")
+    expect(nodes[1]).toHaveTextContent("Second")
+  })
+
+  it("renders shimmer inside a heading", () => {
+    renderMd("## :shimmer[Dynamic Title]")
+    expect(screen.getByTestId("stMarkdownShimmer")).toHaveTextContent(
+      "Dynamic Title"
+    )
+  })
+
+  it("renders shimmer inside bold text", () => {
+    renderMd("**:shimmer[bold shimmer]**")
+    expect(screen.getByTestId("stMarkdownShimmer")).toHaveTextContent(
+      "bold shimmer"
+    )
+  })
+
+  it("renders shimmer inside a blockquote", () => {
+    renderMd("> :shimmer[quoted shimmer]")
+    expect(screen.getByTestId("stMarkdownShimmer")).toHaveTextContent(
+      "quoted shimmer"
+    )
+  })
+
+  it("does NOT render shimmer when isLabel=true (widget label restrictions apply)", () => {
+    // Shimmer spans are <span> elements and not in LABEL_DISALLOWED_ELEMENTS,
+    // so they SHOULD still render in labels. This test confirms that behavior.
+    render(
+      <RenderedMarkdown
+        source=":shimmer[loading]"
+        allowHTML={false}
+        isLabel={true}
+      />
+    )
+    expect(screen.getByTestId("stMarkdownShimmer")).toBeInTheDocument()
+  })
+
+  it("coexists with :small[] directive", () => {
+    renderMd(":shimmer[loading] and :small[tiny text]")
+    expect(screen.getByTestId("stMarkdownShimmer")).toHaveTextContent("loading")
+    // :small renders as a plain <span> without a testid, verify text exists
+    expect(screen.getByText("tiny text")).toBeInTheDocument()
+  })
+
+  it("coexists with :help[] directive", () => {
+    renderMd(":shimmer[loading] :help[tooltip info]")
+    expect(screen.getByTestId("stMarkdownShimmer")).toBeInTheDocument()
+    // help icon should also be present
+    expect(screen.getByRole("button", { hidden: true })).toBeInTheDocument()
+  })
+
+  it("preserves surrounding markdown when shimmer is used", () => {
+    renderMd("Normal text :shimmer[shimmer part] more normal text.")
+    const container = screen
+      .getByTestId("stMarkdownShimmer")
+      .closest("p") as HTMLElement
+    expect(container.textContent).toContain("Normal text")
+    expect(container.textContent).toContain("more normal text.")
+  })
+
+  it("renders empty :shimmer[] without crashing", () => {
+    renderMd(":shimmer[]")
+    expect(screen.getByTestId("stMarkdownShimmer")).toBeInTheDocument()
   })
 })
 
