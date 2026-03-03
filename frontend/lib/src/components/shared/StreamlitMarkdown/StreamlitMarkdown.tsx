@@ -47,9 +47,6 @@ import remarkMathPlugin from "remark-math"
 import { PluggableList } from "unified"
 import { visit } from "unist-util-visit"
 import xxhash from "xxhashjs"
-
-import { Skeleton as SkeletonProto } from "@streamlit/protobuf"
-
 import streamlitLogo from "~lib/assets/img/streamlit-logo/streamlit-mark-color.svg"
 import IsDialogContext from "~lib/components/core/IsDialogContext"
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
@@ -89,9 +86,38 @@ import {
   wrapRemarkPlugin,
 } from "./utils"
 
+import { keyframes, css } from "@emotion/react"
+
+const shimmerKeyframe = keyframes`
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+  `
 const StreamlitSyntaxHighlighter = lazy(
   () => import("~lib/components/elements/CodeBlock/StreamlitSyntaxHighlighter")
 )
+
+// ============================================================
+// The CustomShimmerSpan component is used as a placeholder for text that is loading.
+// ============================================================
+
+export const CustomShimmerSpan: FC<{ children?: ReactNode }> = ({ children }) => {
+  return (
+    <span
+      data-testid="stMarkdownShimmer"
+      style={{
+        background: "linear-gradient(90deg, #888 0%, #888 35%, #fff 50%, #888 65%, #888 100%)",
+        backgroundSize: "200% auto",
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        animation: "shimmer 2s linear infinite",
+        display: "inline",
+      }}
+    >
+      {children}
+    </span>
+  )
+}
 
 /**
  * Heuristic to determine if the markdown source contains emoji shortcodes that require remark-emoji.
@@ -560,7 +586,12 @@ const BASE_RENDERERS = {
   video: CustomMediaTag,
   audio: CustomMediaTag,
   "streamlit-help-icon": CustomHelpIcon,
+  "streamlit-shimmer-span": CustomShimmerSpan,
 }
+
+
+
+
 
 /**
  * Create a color mapping based on the theme.
@@ -627,6 +658,14 @@ function createRemarkHelpIcon() {
         // Pass the children through so CustomHelpIcon can extract the content
         return
       }
+
+      if (nodeName === "shimmer") {
+        const data = node.data || (node.data = {})
+        data.hName = "streamlit-shimmer-span"
+        data.hProperties = data.hProperties || {}
+        return
+      }
+
     })
 
     return tree
