@@ -168,19 +168,13 @@ export const StyledColumn = styled.div<StyledColumnProps>(
       },
       ...(verticalAlignment === VerticalAlignment.BOTTOM && {
         marginTop: "auto",
-        // Add margin to the first checkbox/toggle within the column to align it
-        // better with other input widgets.
-        [`& ${StyledElementContainer}:last-of-type > ${StyledCheckbox}`]: {
-          marginBottom: theme.spacing.sm,
-        },
       }),
-      ...(verticalAlignment === VerticalAlignment.TOP && {
-        // Add margin to the first checkbox/toggle within the column to align it
-        // better with other input widgets.
-        [`& ${StyledElementContainer}:first-of-type > ${StyledCheckbox}`]: {
-          marginTop: theme.spacing.sm,
-        },
-      }),
+      ...(verticalAlignment === VerticalAlignment.TOP &&
+        {
+          // No special margin handling for first checkbox to avoid inconsistency
+          // when checkboxes are in horizontal containers. Users can use
+          // vertical_alignment="center" or st.space() for precise alignment.
+        }),
       ...(verticalAlignment === VerticalAlignment.CENTER && {
         marginTop: "auto",
         marginBottom: "auto",
