@@ -48,6 +48,16 @@ export const StyledExceptionLinks = styled.div(({ theme }) => ({
   gap: theme.spacing.md,
   justifyContent: "flex-end",
   underline: true,
+
+  // Handle cases where the container is too narrow to fit the links in a row. The links
+  // are displayed in a column and truncated.
+  "@container (max-width: 250px)": {
+    flexDirection: "column",
+    textOverflow: "clip",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    gap: theme.spacing.sm,
+  },
 }))
 
 export const StyledExceptionCopyButton = styled.button({
@@ -60,4 +70,5 @@ export const StyledExceptionWrapper = styled.div(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   gap: theme.spacing.lg,
+  containerType: "inline-size",
 }))
