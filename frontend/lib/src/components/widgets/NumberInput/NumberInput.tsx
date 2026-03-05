@@ -32,6 +32,7 @@ import { NumberInput as NumberInputProto } from "@streamlit/protobuf"
 
 import Icon, { DynamicIcon, isMaterialIcon } from "~lib/components/shared/Icon"
 import InputInstructions from "~lib/components/shared/InputInstructions/InputInstructions"
+import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import {
   WidgetLabel,
   WidgetLabelHelpIcon,
@@ -52,7 +53,9 @@ import {
   StyledInputContainer,
   StyledInputControl,
   StyledInputControls,
+  StyledInputWrapper,
   StyledInstructionsContainer,
+  StyledPlaceholder,
 } from "./styled-components"
 import {
   canDecrement,
@@ -260,6 +263,14 @@ const NumberInput: React.FC<Props> = ({
   const canInc = canIncrement(currentNumericValue, step, max)
 
   const handleBlur = useCallback((): void => {
+    // For type="number" inputs, if user typed invalid chars (e.g., "abc"),
+    // the browser shows the text but value returns "". We need to forcefully
+    // clear the native input so React can properly update it.
+    const inputElement = inputRef.current as HTMLInputElement | null
+    if (inputElement?.validity?.badInput) {
+      inputElement.value = ""
+    }
+
     if (dirty) {
       // Use currentNumericValue (parsed from formattedValue) not value (from useBasicWidgetState)
       // because value isn't updated until commit, but the user has typed a new value
@@ -368,114 +379,125 @@ const NumberInput: React.FC<Props> = ({
         className={isFocused ? "focused" : ""}
         data-testid="stNumberInputContainer"
       >
-        <UIInput
-          type="number"
-          inputRef={inputRef}
-          value={formattedValue ?? ""}
-          placeholder={element.placeholder}
-          onBlur={handleBlur}
-          onFocus={handleFocus}
-          onChange={handleChange}
-          onKeyPress={handleKeyPress}
-          onKeyDown={handleKeyDown}
-          clearable={clearable}
-          clearOnEscape={clearable}
-          disabled={disabled}
-          aria-label={element.label}
-          startEnhancer={
-            element.icon && (
-              <DynamicIcon
-                data-testid="stNumberInputIcon"
-                iconValue={element.icon}
-                size="lg"
+        <StyledInputWrapper>
+          {!formattedValue && !isFocused && element.placeholder && (
+            <StyledPlaceholder hasIcon={!!icon}>
+              <StreamlitMarkdown
+                source={element.placeholder}
+                allowHTML={false}
+                isLabel
+                inheritFont
               />
-            )
-          }
-          id={id}
-          overrides={{
-            ClearIconContainer: {
-              style: {
-                padding: 0,
+            </StyledPlaceholder>
+          )}
+          <UIInput
+            type="number"
+            inputRef={inputRef}
+            value={formattedValue ?? ""}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            onChange={handleChange}
+            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
+            clearable={clearable}
+            clearOnEscape={clearable}
+            disabled={disabled}
+            aria-label={element.label}
+            startEnhancer={
+              element.icon && (
+                <DynamicIcon
+                  data-testid="stNumberInputIcon"
+                  iconValue={element.icon}
+                  size="lg"
+                />
+              )
+            }
+            id={id}
+            overrides={{
+              ClearIconContainer: {
+                style: {
+                  padding: 0,
+                },
               },
-            },
-            ClearIcon: {
-              props: {
-                overrides: {
-                  Svg: {
-                    style: {
-                      color: theme.colors.grayTextColor,
-                      // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
-                      padding: theme.spacing.threeXS,
-                      height: theme.sizes.clearIconSize,
-                      width: theme.sizes.clearIconSize,
-                      ":hover": {
-                        fill: theme.colors.bodyText,
+              ClearIcon: {
+                props: {
+                  overrides: {
+                    Svg: {
+                      style: {
+                        color: theme.colors.grayTextColor,
+                        // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
+                        padding: theme.spacing.threeXS,
+                        height: theme.sizes.clearIconSize,
+                        width: theme.sizes.clearIconSize,
+                        ":hover": {
+                          fill: theme.colors.bodyText,
+                        },
                       },
                     },
                   },
                 },
               },
-            },
-            Input: {
-              props: {
-                "data-testid": "stNumberInputField",
-                step: step,
-                min: min,
-                max: max,
-                // We specify the type as "number" to have numeric keyboard on mobile devices.
-                // We also set inputMode to "" since by default BaseWeb sets "text",
-                // and for "decimal" / "numeric" IOS shows keyboard without a minus sign.
-                type: "number",
-                inputMode: "",
-              },
-              style: {
-                fontWeight: theme.fontWeights.normal,
-                lineHeight: theme.lineHeights.inputWidget,
-                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                paddingRight: theme.spacing.sm,
-                paddingLeft: theme.spacing.md,
-                paddingBottom: theme.spacing.sm,
-                paddingTop: theme.spacing.sm,
-                "::placeholder": {
-                  color: theme.colors.fadedText60,
+              Input: {
+                props: {
+                  "data-testid": "stNumberInputField",
+                  step: step,
+                  min: min,
+                  max: max,
+                  // We specify the type as "number" to have numeric keyboard on mobile devices.
+                  // We also set inputMode to "" since by default BaseWeb sets "text",
+                  // and for "decimal" / "numeric" IOS shows keyboard without a minus sign.
+                  type: "number",
+                  inputMode: "",
+                },
+                style: {
+                  fontWeight: theme.fontWeights.normal,
+                  lineHeight: theme.lineHeights.inputWidget,
+                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                  paddingRight: theme.spacing.sm,
+                  paddingLeft: theme.spacing.md,
+                  paddingBottom: theme.spacing.sm,
+                  paddingTop: theme.spacing.sm,
+                  "::placeholder": {
+                    color: theme.colors.fadedText60,
+                  },
                 },
               },
-            },
-            InputContainer: {
-              style: () => ({
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-              }),
-            },
-            Root: {
-              style: {
-                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                borderLeftWidth: 0,
-                borderRightWidth: 0,
-                borderTopWidth: 0,
-                borderBottomWidth: 0,
-                paddingRight: 0,
-                paddingLeft: icon ? theme.spacing.sm : 0,
+              InputContainer: {
+                style: () => ({
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                }),
               },
-            },
-            StartEnhancer: {
-              style: {
-                paddingLeft: 0,
-                paddingRight: 0,
-                // Keeps emoji icons from being cut off on the right
-                minWidth: theme.iconSizes.lg,
-                // Material icons color changed as inactionable
-                color: isMaterialIcon(icon)
-                  ? theme.colors.fadedText60
-                  : "inherit",
+              Root: {
+                style: {
+                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderLeftWidth: 0,
+                  borderRightWidth: 0,
+                  borderTopWidth: 0,
+                  borderBottomWidth: 0,
+                  paddingRight: 0,
+                  paddingLeft: icon ? theme.spacing.sm : 0,
+                },
               },
-            },
-          }}
-        />
+              StartEnhancer: {
+                style: {
+                  paddingLeft: 0,
+                  paddingRight: 0,
+                  // Keeps emoji icons from being cut off on the right
+                  minWidth: theme.iconSizes.lg,
+                  // Material icons color changed as inactionable
+                  color: isMaterialIcon(icon)
+                    ? theme.colors.fadedText60
+                    : "inherit",
+                },
+              },
+            }}
+          />
+        </StyledInputWrapper>
         {/* We only want to show the increment/decrement controls when there is sufficient room to display the value and these controls. */}
         {width > numberInputControlBreakpoint && (
           <StyledInputControls>

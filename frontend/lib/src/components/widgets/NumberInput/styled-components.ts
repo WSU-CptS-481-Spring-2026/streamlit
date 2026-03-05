@@ -46,6 +46,32 @@ export const StyledInputContainer = styled.div(({ theme }) => ({
   },
 }))
 
+export const StyledInputWrapper = styled.div`
+  position: relative;
+  flex: 1;
+`
+
+export const StyledPlaceholder = styled.div<{ hasIcon?: boolean }>(
+  ({ theme, hasIcon }) => {
+    const iconOffset = `${theme.spacing.sm} + ${theme.iconSizes.lg} + ${theme.spacing.md}`
+    const leftPadding = hasIcon ? iconOffset : theme.spacing.md
+
+    return {
+      position: "absolute",
+      top: "50%",
+      transform: "translateY(-50%)",
+      left: `calc(${theme.sizes.borderWidth} + ${leftPadding})`,
+      right: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
+      color: theme.colors.fadedText60,
+      pointerEvents: "none",
+      userSelect: "none",
+      overflow: "hidden",
+      whiteSpace: "nowrap",
+      fontSize: theme.fontSizes.md,
+    }
+  }
+)
+
 export const StyledInputControls = styled.div({
   display: "flex",
   flexDirection: "row",
