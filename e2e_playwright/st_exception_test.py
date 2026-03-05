@@ -60,6 +60,23 @@ def test_st_exception_displays_correctly(
     )
 
 
+def test_st_exception_responsive_layout(
+    themed_app: Page, assert_snapshot: ImageCompareFunction
+) -> None:
+    # Wait for all exceptions to load (5 from main tests + 2 from responsive tests)
+    exceptions = themed_app.get_by_test_id("stException")
+    expect(exceptions).to_have_count(7)
+
+    # Make sure there is no hover active on the exceptions
+    themed_app.get_by_test_id("stMarkdownContainer").first.hover()
+
+    # Narrow column - links should stack vertically
+    assert_snapshot(exceptions.nth(5), name="st_exception-narrow_column")
+
+    # Wide column - links should display horizontally
+    assert_snapshot(exceptions.nth(6), name="st_exception-wide_column")
+
+
 def test_check_top_level_class(app: Page):
     """Check that the top level class is correctly set."""
     check_top_level_class(app, "stException")

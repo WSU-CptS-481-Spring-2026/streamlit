@@ -60,3 +60,26 @@ st.exception(
 # which would cause tests to fail.
 if st.button("Raise exception"):
     raise basic_exception
+
+st.divider()
+st.title("Test exception responsive layout")
+
+# Test responsive layout with container queries
+# Links should stack vertically in narrow containers, horizontally in wide ones
+col1, col2 = st.columns([1, 3])
+
+# Links should stack vertically
+with col1:
+    st.subheader("Narrow Column")
+    try:
+        raise TypeError("Exception in narrow column")
+    except Exception as e:
+        st.exception(e)
+
+# Links should display horizontally
+with col2:
+    st.subheader("Wide Column")
+    try:
+        raise RuntimeError("Exception in wide column")
+    except Exception as e:
+        st.exception(e)
