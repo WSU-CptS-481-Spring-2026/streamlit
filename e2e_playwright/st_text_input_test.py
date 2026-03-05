@@ -30,7 +30,7 @@ from e2e_playwright.shared.input_utils import (
     type_common_characters_into_input,
 )
 
-TEXT_INPUT_ELEMENTS = 19
+TEXT_INPUT_ELEMENTS = 20
 
 
 def test_text_input_widget_rendering(
@@ -103,6 +103,10 @@ def test_text_input_widget_rendering(
     assert_snapshot(
         get_text_input(themed_app, "text input 18 (width='stretch')"),
         name="st_text_input-width_stretch",
+    )
+    assert_snapshot(
+        get_text_input(themed_app, "text input 19 (markdown placeholder)"),
+        name="st_text_input-markdown_placeholder",
     )
 
 

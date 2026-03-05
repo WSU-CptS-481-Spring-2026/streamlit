@@ -98,8 +98,33 @@ describe("TextInput widget", () => {
     const props = getProps()
     render(<TextInput {...props} />)
 
+    expect(screen.getByText(props.element.placeholder)).toBeVisible()
+  })
+
+  it("hides placeholder when input has value", async () => {
+    const user = userEvent.setup()
+    const props = getProps()
+    render(<TextInput {...props} />)
+
+    expect(screen.getByText(props.element.placeholder)).toBeVisible()
+
     const textInput = screen.getByRole("textbox")
-    expect(textInput).toHaveAttribute("placeholder", props.element.placeholder)
+    await user.type(textInput, "test")
+
+    expect(
+      screen.queryByText(props.element.placeholder)
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders Markdown in placeholder", () => {
+    const props = getProps({ placeholder: "**Bold** and *italic*" })
+    render(<TextInput {...props} />)
+
+    // Check that Markdown is rendered (bold text)
+    const placeholder = screen.getByText((_, element) => {
+      return element?.tagName === "STRONG" && element?.textContent === "Bold"
+    })
+    expect(placeholder).toBeInTheDocument()
   })
 
   it("handles default text input type properly", () => {
@@ -116,10 +141,11 @@ describe("TextInput widget", () => {
   it("handles password text input type properly", () => {
     const passwordProps = getProps({ type: TextInputProto.Type.PASSWORD })
     render(<TextInput {...passwordProps} />)
-    const passwordTextInput = screen.getByPlaceholderText("Placeholder")
+    const textInputContainer = screen.getByTestId("stTextInputRootElement")
+    const passwordTextInput =
+      within(textInputContainer).getByLabelText("Label")
     expect(passwordTextInput).toHaveAttribute("type", "password")
     // Check for the show/hide button
-    const textInputContainer = screen.getByTestId("stTextInputRootElement")
     const showButton = within(textInputContainer).getByRole("button")
     expect(showButton).toBeInTheDocument()
   })
