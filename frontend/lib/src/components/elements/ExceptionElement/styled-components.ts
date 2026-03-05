@@ -16,6 +16,15 @@
 
 import styled from "@emotion/styled"
 
+// Shared overflow handling for narrow containers
+const narrowContainerOverflow = {
+  "@container (max-width: 250px)": {
+    textOverflow: "clip",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+  },
+}
+
 export const StyledStackTraceRow = styled.div(({ theme }) => ({
   marginTop: theme.spacing.sm,
   "&:first-of-type": {
@@ -29,6 +38,7 @@ export const StyledMessageType = styled.span(({ theme }) => ({
 
 export const StyledStackTraceTitle = styled.div(({ theme }) => ({
   marginBottom: theme.spacing.sm,
+  ...narrowContainerOverflow,
 }))
 
 // This extra div makes sure that we also have a padding on the right side of the stack
@@ -53,10 +63,8 @@ export const StyledExceptionLinks = styled.div(({ theme }) => ({
   // are displayed in a column and truncated.
   "@container (max-width: 250px)": {
     flexDirection: "column",
-    textOverflow: "clip",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
     gap: theme.spacing.sm,
+    ...narrowContainerOverflow["@container (max-width: 250px)"],
   },
 }))
 
