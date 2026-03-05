@@ -29,6 +29,10 @@ import { type OnChangeParams, Select as UISelect } from "baseui/select"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
 import { getBorderColor } from "~lib/components/shared/Base/styled-components"
+import {
+  StyledInputWrapper,
+  StyledPlaceholder,
+} from "~lib/components/shared/Dropdown/styled-components"
 import VirtualDropdown from "~lib/components/shared/Dropdown/VirtualDropdown"
 import {
   WidgetLabel,
@@ -164,26 +168,9 @@ const Selectbox: FC<Props> = ({
       >
         {help && <WidgetLabelHelpIcon content={help} label={label} />}
       </WidgetLabel>
-      <div style={{ position: "relative" }}>
+      <StyledInputWrapper>
         {placeholderContent && !value && !hasInputText ? (
-          <div
-            style={{
-              position: "absolute",
-              top: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
-              left: `calc(${theme.sizes.borderWidth} + ${theme.spacing.md})`,
-              right: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
-              color: theme.colors.fadedText60,
-              pointerEvents: "none",
-              userSelect: "none",
-              overflow: "hidden",
-              whiteSpace: "nowrap",
-              fontSize: theme.fontSizes.md,
-              lineHeight: theme.lineHeights.inputWidget,
-              zIndex: theme.zIndices.priority,
-            }}
-          >
-            {placeholderContent}
-          </div>
+          <StyledPlaceholder>{placeholderContent}</StyledPlaceholder>
         ) : null}
         <UISelect
           creatable={acceptNewOptions}
@@ -368,7 +355,7 @@ const Selectbox: FC<Props> = ({
             },
           }}
         />
-      </div>
+      </StyledInputWrapper>
     </div>
   )
 }
