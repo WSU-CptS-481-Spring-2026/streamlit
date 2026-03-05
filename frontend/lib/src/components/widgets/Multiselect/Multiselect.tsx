@@ -22,6 +22,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react"
 
 import { ChevronDown } from "baseui/icon"
@@ -40,11 +41,16 @@ import { MultiSelect as MultiSelectProto } from "@streamlit/protobuf"
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
 import { getBorderColor } from "~lib/components/shared/Base/styled-components"
 import { VirtualDropdown } from "~lib/components/shared/Dropdown"
+import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import {
   WidgetLabel,
   WidgetLabelHelpIcon,
 } from "~lib/components/widgets/BaseWidget"
-import { StyledUISelect } from "~lib/components/widgets/Multiselect/styled-components"
+import {
+  StyledInputWrapper,
+  StyledPlaceholder,
+  StyledUISelect,
+} from "~lib/components/widgets/Multiselect/styled-components"
 import {
   useBasicWidgetState,
   ValueWithSource,
@@ -103,6 +109,8 @@ const Multiselect: FC<Props> = props => {
   const isInSidebar = useContext(IsSidebarContext)
   const valueContainerRef = useRef<HTMLDivElement>(null)
   const scrollTopRef = useRef(0)
+  // Track whether the user has typed filter text (to hide markdown placeholder while typing)
+  const [hasInputText, setHasInputText] = useState(false)
   const [value, setValueWithSource] = useBasicWidgetState<
     MultiselectValue,
     MultiSelectProto
@@ -172,6 +180,10 @@ const Multiselect: FC<Props> = props => {
       ) {
         return
       }
+      // Preemptively hide placeholder during removal to avoid flash
+      if (params.type === "remove") {
+        setHasInputText(true)
+      }
       setValueWithSource({
         value: generateNewState(params),
         fromUi: true,
@@ -205,6 +217,30 @@ const Multiselect: FC<Props> = props => {
     },
     [createFilterOptions, overMaxSelections, value]
   )
+
+  // Track when the user types filter text (to hide markdown placeholder)
+  const handleInputChange = useCallback(
+    (event: React.SyntheticEvent<HTMLInputElement>) => {
+      const inputValue = (event.target as HTMLInputElement).value
+      setHasInputText(inputValue.length > 0)
+    },
+    []
+  )
+
+  // Reset input text tracking on blur
+  const handleBlur = useCallback(() => {
+    setHasInputText(false)
+  }, [])
+
+  // Build the placeholder content with Markdown support
+  const placeholderContent = element.placeholder ? (
+    <StreamlitMarkdown
+      source={element.placeholder}
+      allowHTML={false}
+      isLabel
+      inheritFont
+    />
+  ) : undefined
 
   const disabled = props.disabled || shouldDisable
   const valueFromState = useMemo(
@@ -271,159 +307,166 @@ const Multiselect: FC<Props> = props => {
           <WidgetLabelHelpIcon content={element.help} label={element.label} />
         )}
       </WidgetLabel>
-      <StyledUISelect>
-        <UISelect
-          creatable={element.acceptNewOptions ?? false}
-          options={selectOptions}
-          labelKey="label"
-          valueKey="value"
-          aria-label={element.label}
-          placeholder={placeholder}
-          type={TYPE.select}
-          multi
-          onChange={onChange}
-          value={valueFromState}
-          disabled={disabled}
-          size={"compact"}
-          noResultsMsg={getNoResultsMsg}
-          filterOptions={filterOptions}
-          closeOnSelect={false}
-          ignoreCase={false}
-          overrides={{
-            Popover: {
-              props: {
-                ignoreBoundary: isInSidebar,
-                overrides: {
-                  Body: {
-                    style: () => ({
-                      marginTop: theme.spacing.px,
-                    }),
+      <StyledInputWrapper>
+        {placeholderContent && value.length === 0 && !hasInputText ? (
+          <StyledPlaceholder>{placeholderContent}</StyledPlaceholder>
+        ) : null}
+        <StyledUISelect>
+          <UISelect
+            creatable={element.acceptNewOptions ?? false}
+            options={selectOptions}
+            labelKey="label"
+            valueKey="value"
+            aria-label={element.label}
+            placeholder={placeholderContent ? "" : placeholder}
+            type={TYPE.select}
+            multi
+            onChange={onChange}
+            onInputChange={handleInputChange}
+            onBlur={handleBlur}
+            value={valueFromState}
+            disabled={disabled}
+            size={"compact"}
+            noResultsMsg={getNoResultsMsg}
+            filterOptions={filterOptions}
+            closeOnSelect={false}
+            ignoreCase={false}
+            overrides={{
+              Popover: {
+                props: {
+                  ignoreBoundary: isInSidebar,
+                  overrides: {
+                    Body: {
+                      style: () => ({
+                        marginTop: theme.spacing.px,
+                      }),
+                    },
                   },
                 },
               },
-            },
-            SelectArrow: {
-              component: ChevronDown,
-              props: {
-                style: {
-                  cursor: "pointer",
-                },
-                overrides: {
-                  Svg: {
-                    style: () => ({
-                      width: theme.iconSizes.xl,
-                      height: theme.iconSizes.xl,
-                    }),
+              SelectArrow: {
+                component: ChevronDown,
+                props: {
+                  style: {
+                    cursor: "pointer",
+                  },
+                  overrides: {
+                    Svg: {
+                      style: () => ({
+                        width: theme.iconSizes.xl,
+                        height: theme.iconSizes.xl,
+                      }),
+                    },
                   },
                 },
               },
-            },
 
-            IconsContainer: {
-              style: () => ({
-                paddingRight: theme.spacing.sm,
-              }),
-            },
-            ControlContainer: {
-              style: ({ $isFocused }: { $isFocused: boolean }) => {
-                const borderColor = getBorderColor(theme.colors, $isFocused)
-                return {
-                  maxHeight: maxHeight,
-                  minHeight: theme.sizes.minElementHeight,
-                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                  borderLeftWidth: theme.sizes.borderWidth,
-                  borderRightWidth: theme.sizes.borderWidth,
-                  borderTopWidth: theme.sizes.borderWidth,
-                  borderBottomWidth: theme.sizes.borderWidth,
-
-                  borderTopColor: borderColor,
-                  borderRightColor: borderColor,
-                  borderBottomColor: borderColor,
-                  borderLeftColor: borderColor,
-                }
+              IconsContainer: {
+                style: () => ({
+                  paddingRight: theme.spacing.sm,
+                }),
               },
-            },
-            Placeholder: {
-              style: () => ({
-                flex: "inherit",
-                color: disabled
-                  ? theme.colors.fadedText40
-                  : theme.colors.fadedText60,
-              }),
-            },
-            ValueContainer: {
-              component: ValueContainer,
-              style: () => ({
-                overflowY: "auto",
-                paddingLeft: theme.spacing.sm,
-                paddingTop: theme.spacing.none,
-                paddingBottom: theme.spacing.none,
-                paddingRight: theme.spacing.none,
-              }),
-            },
-            ClearIcon: {
-              props: {
-                overrides: {
-                  Svg: {
-                    style: {
-                      color: theme.colors.grayTextColor,
-                      // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
-                      padding: theme.spacing.threeXS,
-                      height: theme.sizes.clearIconSize,
-                      width: theme.sizes.clearIconSize,
-                      cursor: "pointer",
-                      ":hover": {
-                        fill: theme.colors.bodyText,
+              ControlContainer: {
+                style: ({ $isFocused }: { $isFocused: boolean }) => {
+                  const borderColor = getBorderColor(theme.colors, $isFocused)
+                  return {
+                    maxHeight: maxHeight,
+                    minHeight: theme.sizes.minElementHeight,
+                    // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                    borderLeftWidth: theme.sizes.borderWidth,
+                    borderRightWidth: theme.sizes.borderWidth,
+                    borderTopWidth: theme.sizes.borderWidth,
+                    borderBottomWidth: theme.sizes.borderWidth,
+
+                    borderTopColor: borderColor,
+                    borderRightColor: borderColor,
+                    borderBottomColor: borderColor,
+                    borderLeftColor: borderColor,
+                  }
+                },
+              },
+              Placeholder: {
+                style: () => ({
+                  flex: "inherit",
+                  color: disabled
+                    ? theme.colors.fadedText40
+                    : theme.colors.fadedText60,
+                }),
+              },
+              ValueContainer: {
+                component: ValueContainer,
+                style: () => ({
+                  overflowY: "auto",
+                  paddingLeft: theme.spacing.sm,
+                  paddingTop: theme.spacing.none,
+                  paddingBottom: theme.spacing.none,
+                  paddingRight: theme.spacing.none,
+                }),
+              },
+              ClearIcon: {
+                props: {
+                  overrides: {
+                    Svg: {
+                      style: {
+                        color: theme.colors.grayTextColor,
+                        // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
+                        padding: theme.spacing.threeXS,
+                        height: theme.sizes.clearIconSize,
+                        width: theme.sizes.clearIconSize,
+                        cursor: "pointer",
+                        ":hover": {
+                          fill: theme.colors.bodyText,
+                        },
                       },
                     },
                   },
                 },
               },
-            },
-            SearchIcon: {
-              style: {
-                color: theme.colors.grayTextColor,
+              SearchIcon: {
+                style: {
+                  color: theme.colors.grayTextColor,
+                },
               },
-            },
-            Tag: {
-              props: {
-                overrides: {
-                  Root: {
-                    style: {
-                      fontWeight: theme.fontWeights.normal,
-                      borderTopLeftRadius: theme.radii.md,
-                      borderTopRightRadius: theme.radii.md,
-                      borderBottomRightRadius: theme.radii.md,
-                      borderBottomLeftRadius: theme.radii.md,
-                      fontSize: theme.fontSizes.md,
-                      paddingLeft: theme.spacing.sm,
-                      marginLeft: theme.spacing.none,
-                      marginRight: theme.spacing.sm,
-                      // The tag height is derived from the minElementHeight
-                      // minus a top and bottom padding (2 * spacing.xs)
-                      // to nicely fit into the input field.
-                      height: `calc(${theme.sizes.minElementHeight} - 2 * ${theme.spacing.xs})`,
-                      maxWidth: `calc(100% - ${theme.spacing.lg})`,
-                      // Using !important because the alternative would be
-                      // uglier: we'd have to put it under a selector like
-                      // "&[role="button"]:not(:disabled)" in order to win in
-                      // the order of the precedence.
-                      cursor: "default !important",
+              Tag: {
+                props: {
+                  overrides: {
+                    Root: {
+                      style: {
+                        fontWeight: theme.fontWeights.normal,
+                        borderTopLeftRadius: theme.radii.md,
+                        borderTopRightRadius: theme.radii.md,
+                        borderBottomRightRadius: theme.radii.md,
+                        borderBottomLeftRadius: theme.radii.md,
+                        fontSize: theme.fontSizes.md,
+                        paddingLeft: theme.spacing.sm,
+                        marginLeft: theme.spacing.none,
+                        marginRight: theme.spacing.sm,
+                        // The tag height is derived from the minElementHeight
+                        // minus a top and bottom padding (2 * spacing.xs)
+                        // to nicely fit into the input field.
+                        height: `calc(${theme.sizes.minElementHeight} - 2 * ${theme.spacing.xs})`,
+                        maxWidth: `calc(100% - ${theme.spacing.lg})`,
+                        // Using !important because the alternative would be
+                        // uglier: we'd have to put it under a selector like
+                        // "&[role="button"]:not(:disabled)" in order to win in
+                        // the order of the precedence.
+                        cursor: "default !important",
+                      },
                     },
-                  },
-                  Action: {
-                    style: {
-                      paddingLeft: 0,
+                    Action: {
+                      style: {
+                        paddingLeft: 0,
+                      },
                     },
-                  },
-                  ActionIcon: {
-                    props: {
-                      overrides: {
-                        Svg: {
-                          style: {
-                            // The action icon should be around 0.625% of the parent font size.
-                            width: "0.625em",
-                            height: "0.625em",
+                    ActionIcon: {
+                      props: {
+                        overrides: {
+                          Svg: {
+                            style: {
+                              // The action icon should be around 0.625% of the parent font size.
+                              width: "0.625em",
+                              height: "0.625em",
+                            },
                           },
                         },
                       },
@@ -431,23 +474,23 @@ const Multiselect: FC<Props> = props => {
                   },
                 },
               },
-            },
-            MultiValue: {
-              props: {
-                overrides: {
-                  Root: {
-                    style: {
-                      fontSize: theme.fontSizes.sm,
+              MultiValue: {
+                props: {
+                  overrides: {
+                    Root: {
+                      style: {
+                        fontSize: theme.fontSizes.sm,
+                      },
                     },
                   },
                 },
               },
-            },
-            Input: { props: { readOnly: inputReadOnly } },
-            Dropdown: { component: VirtualDropdown },
-          }}
-        />
-      </StyledUISelect>
+              Input: { props: { readOnly: inputReadOnly } },
+              Dropdown: { component: VirtualDropdown },
+            }}
+          />
+        </StyledUISelect>
+      </StyledInputWrapper>
     </div>
   )
 }
