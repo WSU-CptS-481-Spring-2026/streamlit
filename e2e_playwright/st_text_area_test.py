@@ -26,7 +26,7 @@ from e2e_playwright.shared.app_utils import (
     get_text_area,
 )
 
-NUM_TEXT_AREAS = 25
+NUM_TEXT_AREAS = 26
 
 
 def test_text_area_widget_rendering(
@@ -54,6 +54,10 @@ def test_text_area_widget_rendering(
     assert_snapshot(
         get_text_area(themed_app, "text area 5 (placeholder)"),
         name="st_text_area-placeholder",
+    )
+    assert_snapshot(
+        get_element_by_key(themed_app, "text_area_5_5"),
+        name="st_text_area-markdown_placeholder",
     )
     assert_snapshot(
         get_text_area(themed_app, "text area 6 (disabled)"),
