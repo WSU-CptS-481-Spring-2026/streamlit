@@ -21,3 +21,24 @@ export const StyledTextAreaContainer = styled.div({
   display: "flex",
   flexDirection: "column",
 })
+
+export const StyledInputWrapper = styled.div`
+  position: relative;
+`
+
+export const StyledPlaceholder = styled.div(({ theme }) => {
+  const offset = `calc(${theme.sizes.borderWidth} + ${theme.spacing.md})`
+
+  return {
+    position: "absolute",
+    top: offset,
+    left: offset,
+    right: offset,
+    color: theme.colors.fadedText60,
+    pointerEvents: "none",
+    userSelect: "none",
+    overflow: "hidden",
+    fontSize: theme.fontSizes.md,
+    lineHeight: theme.lineHeights.inputWidget,
+  }
+})

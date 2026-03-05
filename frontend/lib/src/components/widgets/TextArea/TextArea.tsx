@@ -23,6 +23,7 @@ import { Element, TextArea as TextAreaProto } from "@streamlit/protobuf"
 
 import { getBorderColor } from "~lib/components/shared/Base/styled-components"
 import InputInstructions from "~lib/components/shared/InputInstructions/InputInstructions"
+import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import {
   WidgetLabel,
   WidgetLabelHelpIcon,
@@ -42,7 +43,11 @@ import { isInForm, labelVisibilityProtoValueToEnum } from "~lib/util/utils"
 import { WidgetStateManager } from "~lib/WidgetStateManager"
 
 import { getTextAreaHeight } from "./heightUtils"
-import { StyledTextAreaContainer } from "./styled-components"
+import {
+  StyledInputWrapper,
+  StyledPlaceholder,
+  StyledTextAreaContainer,
+} from "./styled-components"
 
 export interface Props {
   disabled: boolean
@@ -226,62 +231,72 @@ const TextArea: FC<Props> = ({
           <WidgetLabelHelpIcon content={element.help} label={element.label} />
         )}
       </WidgetLabel>
-
-      <UITextArea
-        inputRef={isAutoHeight ? textareaRef : undefined}
-        value={uiValue ?? ""}
-        placeholder={placeholder}
-        onBlur={onBlur}
-        onFocus={onFocus}
-        onChange={onChange}
-        onKeyDown={onKeyDown}
-        aria-label={element.label}
-        disabled={disabled}
-        id={id}
-        overrides={{
-          Input: {
-            style: {
-              fontWeight: theme.fontWeights.normal,
-              lineHeight: theme.lineHeights.inputWidget,
-              // The default height of the text area is calculated to perfectly fit 3 lines of text.
-              height: isAutoHeight ? autoExpandHeight : inputHeight,
-              maxHeight: isAutoHeight ? autoExpandMaxHeight : "",
-              minHeight: theme.sizes.largestElementHeight,
-              resize: isStretchHeight ? "none" : "vertical",
-              // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-              paddingRight: theme.spacing.md,
-              paddingLeft: theme.spacing.md,
-              paddingBottom: theme.spacing.md,
-              paddingTop: theme.spacing.md,
-              "::placeholder": {
-                color: theme.colors.fadedText60,
+      <StyledInputWrapper>
+        {!uiValue && placeholder && (
+          <StyledPlaceholder>
+            <StreamlitMarkdown
+              source={placeholder}
+              allowHTML={false}
+              isLabel
+              inheritFont
+            />
+          </StyledPlaceholder>
+        )}
+        <UITextArea
+          inputRef={isAutoHeight ? textareaRef : undefined}
+          value={uiValue ?? ""}
+          onBlur={onBlur}
+          onFocus={onFocus}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          aria-label={element.label}
+          disabled={disabled}
+          id={id}
+          overrides={{
+            Input: {
+              style: {
+                fontWeight: theme.fontWeights.normal,
+                lineHeight: theme.lineHeights.inputWidget,
+                // The default height of the text area is calculated to perfectly fit 3 lines of text.
+                height: isAutoHeight ? autoExpandHeight : inputHeight,
+                maxHeight: isAutoHeight ? autoExpandMaxHeight : "",
+                minHeight: theme.sizes.largestElementHeight,
+                resize: isStretchHeight ? "none" : "vertical",
+                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                paddingRight: theme.spacing.md,
+                paddingLeft: theme.spacing.md,
+                paddingBottom: theme.spacing.md,
+                paddingTop: theme.spacing.md,
+                "::placeholder": {
+                  color: theme.colors.fadedText60,
+                },
               },
             },
-          },
-          Root: {
-            props: {
-              "data-testid": "stTextAreaRootElement",
-            },
-            style: ({ $isFocused }: { $isFocused: boolean }) => {
-              const borderColor = getBorderColor(theme.colors, $isFocused)
-              return {
-                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                borderLeftWidth: theme.sizes.borderWidth,
-                borderRightWidth: theme.sizes.borderWidth,
-                borderTopWidth: theme.sizes.borderWidth,
-                borderBottomWidth: theme.sizes.borderWidth,
+            Root: {
+              props: {
+                "data-testid": "stTextAreaRootElement",
+              },
+              style: ({ $isFocused }: { $isFocused: boolean }) => {
+                const borderColor = getBorderColor(theme.colors, $isFocused)
+                return {
+                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                  borderLeftWidth: theme.sizes.borderWidth,
+                  borderRightWidth: theme.sizes.borderWidth,
+                  borderTopWidth: theme.sizes.borderWidth,
+                  borderBottomWidth: theme.sizes.borderWidth,
 
-                borderTopColor: borderColor,
-                borderRightColor: borderColor,
-                borderBottomColor: borderColor,
-                borderLeftColor: borderColor,
+                  borderTopColor: borderColor,
+                  borderRightColor: borderColor,
+                  borderBottomColor: borderColor,
+                  borderLeftColor: borderColor,
 
-                flexGrow: 1,
-              }
+                  flexGrow: 1,
+                }
+              },
             },
-          },
-        }}
-      />
+          }}
+        />
+      </StyledInputWrapper>
 
       {shouldShowInstructions && (
         <InputInstructions
