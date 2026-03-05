@@ -1450,4 +1450,129 @@ describe("NumberInput widget", () => {
       expect(input).toHaveValue(0.51)
     })
   })
+
+  describe("Placeholder", () => {
+    it("renders placeholder when value is empty", () => {
+      const props = getProps({
+        dataType: NumberInputProto.DataType.FLOAT,
+        default: undefined,
+        hasMin: false,
+        hasMax: false,
+        placeholder: "Enter a number",
+      })
+      render(<NumberInput {...props} />)
+
+      expect(screen.getByText("Enter a number")).toBeInTheDocument()
+    })
+
+    it("renders Markdown in placeholder", () => {
+      const props = getProps({
+        dataType: NumberInputProto.DataType.FLOAT,
+        default: undefined,
+        hasMin: false,
+        hasMax: false,
+        placeholder: "**Bold** and *italic*",
+      })
+      render(<NumberInput {...props} />)
+
+      // Check that Markdown is rendered (bold text)
+      const placeholder = screen.getByText((_, element) => {
+        return element?.tagName === "STRONG" && element?.textContent === "Bold"
+      })
+      expect(placeholder).toBeInTheDocument()
+    })
+
+    it("hides placeholder when input is focused", async () => {
+      const user = userEvent.setup()
+      const props = getProps({
+        dataType: NumberInputProto.DataType.FLOAT,
+        default: undefined,
+        hasMin: false,
+        hasMax: false,
+        placeholder: "Enter a number",
+      })
+      render(<NumberInput {...props} />)
+
+      expect(screen.getByText("Enter a number")).toBeInTheDocument()
+
+      await user.click(screen.getByTestId("stNumberInputField"))
+
+      expect(screen.queryByText("Enter a number")).not.toBeInTheDocument()
+    })
+
+    it("hides placeholder when value is present", () => {
+      const props = getProps({
+        dataType: NumberInputProto.DataType.FLOAT,
+        default: 10,
+        hasMin: false,
+        hasMax: false,
+        placeholder: "Enter a number",
+      })
+      render(<NumberInput {...props} />)
+
+      expect(screen.queryByText("Enter a number")).not.toBeInTheDocument()
+    })
+
+    it("shows placeholder again after blur when input has no valid value", async () => {
+      const user = userEvent.setup()
+      const props = getProps({
+        dataType: NumberInputProto.DataType.FLOAT,
+        default: undefined,
+        hasMin: false,
+        hasMax: false,
+        placeholder: "Enter a number",
+      })
+      render(<NumberInput {...props} />)
+
+      // Placeholder visible initially
+      expect(screen.getByText("Enter a number")).toBeInTheDocument()
+
+      const inputField = screen.getByTestId("stNumberInputField")
+      await user.click(inputField)
+
+      // Placeholder hidden when focused
+      expect(screen.queryByText("Enter a number")).not.toBeInTheDocument()
+
+      // Blur without entering a value
+      await user.tab()
+
+      // Placeholder should reappear
+      expect(screen.getByText("Enter a number")).toBeInTheDocument()
+    })
+
+    it("clears invalid input on blur and shows placeholder", async () => {
+      // Note: jsdom doesn't fully support validity.badInput for type="number",
+      // so we test the related behavior: when formattedValue is null/empty
+      // after blur, the placeholder should be visible.
+      const user = userEvent.setup()
+      const props = getProps({
+        dataType: NumberInputProto.DataType.FLOAT,
+        default: undefined,
+        hasMin: false,
+        hasMax: false,
+        placeholder: "Enter a number",
+      })
+      render(<NumberInput {...props} />)
+
+      const inputField = screen.getByTestId("stNumberInputField")
+
+      // Focus the input
+      await user.click(inputField)
+      expect(screen.queryByText("Enter a number")).not.toBeInTheDocument()
+
+      // Simulate the scenario where user typed invalid content
+      // In real browsers, typing "abc" would set validity.badInput = true
+      // and value = "". Here we simulate by directly manipulating.
+      Object.defineProperty(inputField, "validity", {
+        value: { badInput: true },
+        writable: true,
+      })
+
+      // Blur - this should clear the input via our handleBlur logic
+      await user.tab()
+
+      // After blur, placeholder should be visible again
+      expect(screen.getByText("Enter a number")).toBeInTheDocument()
+    })
+  })
 })

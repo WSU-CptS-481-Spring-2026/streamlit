@@ -64,6 +64,13 @@ v11 = st.number_input(
 )
 st.write("number input 11 (value=None) - value: ", v11)
 
+st.number_input(
+    "number input 11.5 (markdown placeholder)",
+    value=None,
+    placeholder="**Bold**, *italic*, and `code`",
+    key="number_input_11_5",
+)
+
 if "number_input_12" not in st.session_state:
     st.session_state["number_input_12"] = 10
 
