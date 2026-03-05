@@ -24,6 +24,7 @@ import { TextInput as TextInputProto } from "@streamlit/protobuf"
 import { getBorderColor } from "~lib/components/shared/Base/styled-components"
 import { DynamicIcon, isMaterialIcon } from "~lib/components/shared/Icon"
 import InputInstructions from "~lib/components/shared/InputInstructions/InputInstructions"
+import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import {
   WidgetLabel,
   WidgetLabelHelpIcon,
@@ -41,7 +42,11 @@ import { convertRemToPx } from "~lib/theme"
 import { isInForm, labelVisibilityProtoValueToEnum } from "~lib/util/utils"
 import { WidgetStateManager } from "~lib/WidgetStateManager"
 
-import { StyledTextInput } from "./styled-components"
+import {
+  StyledInputWrapper,
+  StyledPlaceholder,
+  StyledTextInput,
+} from "./styled-components"
 
 export interface Props {
   disabled: boolean
@@ -160,93 +165,104 @@ function TextInput({
           <WidgetLabelHelpIcon content={element.help} label={element.label} />
         )}
       </WidgetLabel>
-      <UIInput
-        value={uiValue ?? ""}
-        placeholder={placeholder}
-        onBlur={onBlur}
-        onFocus={onFocus}
-        onChange={onChange}
-        onKeyPress={onKeyPress}
-        aria-label={element.label}
-        disabled={disabled}
-        id={id}
-        type={getTypeString(element)}
-        autoComplete={element.autocomplete}
-        startEnhancer={
-          icon && (
-            <DynamicIcon
-              data-testid="stTextInputIcon"
-              iconValue={icon}
-              size="lg"
+      <StyledInputWrapper>
+        {!uiValue && placeholder && (
+          <StyledPlaceholder hasIcon={!!icon}>
+            <StreamlitMarkdown
+              source={placeholder}
+              allowHTML={false}
+              isLabel
+              inheritFont
             />
-          )
-        }
-        overrides={{
-          Input: {
-            style: {
-              fontWeight: theme.fontWeights.normal,
-              // Issue: https://github.com/streamlit/streamlit/issues/2495
-              // The input won't shrink in Firefox,
-              // unless the line below is provided.
-              // See https://stackoverflow.com/a/33811151
-              minWidth: 0,
-              lineHeight: theme.lineHeights.inputWidget,
-              // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-              paddingRight: theme.spacing.sm,
-              paddingLeft: theme.spacing.md,
-              paddingBottom: theme.spacing.sm,
-              paddingTop: theme.spacing.sm,
-              "::placeholder": {
-                color: theme.colors.fadedText60,
+          </StyledPlaceholder>
+        )}
+        <UIInput
+          value={uiValue ?? ""}
+          onBlur={onBlur}
+          onFocus={onFocus}
+          onChange={onChange}
+          onKeyPress={onKeyPress}
+          aria-label={element.label}
+          disabled={disabled}
+          id={id}
+          type={getTypeString(element)}
+          autoComplete={element.autocomplete}
+          startEnhancer={
+            icon && (
+              <DynamicIcon
+                data-testid="stTextInputIcon"
+                iconValue={icon}
+                size="lg"
+              />
+            )
+          }
+          overrides={{
+            Input: {
+              style: {
+                fontWeight: theme.fontWeights.normal,
+                // Issue: https://github.com/streamlit/streamlit/issues/2495
+                // The input won't shrink in Firefox,
+                // unless the line below is provided.
+                // See https://stackoverflow.com/a/33811151
+                minWidth: 0,
+                lineHeight: theme.lineHeights.inputWidget,
+                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                paddingRight: theme.spacing.sm,
+                paddingLeft: theme.spacing.md,
+                paddingBottom: theme.spacing.sm,
+                paddingTop: theme.spacing.sm,
+                "::placeholder": {
+                  color: theme.colors.fadedText60,
+                },
               },
             },
-          },
-          Root: {
-            props: {
-              "data-testid": "stTextInputRootElement",
-            },
-            style: ({ $isFocused }: { $isFocused: boolean }) => {
-              const borderColor = getBorderColor(theme.colors, $isFocused)
-              return {
-                height: theme.sizes.minElementHeight,
-                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                borderLeftWidth: theme.sizes.borderWidth,
-                borderRightWidth: theme.sizes.borderWidth,
-                borderTopWidth: theme.sizes.borderWidth,
-                borderBottomWidth: theme.sizes.borderWidth,
+            Root: {
+              props: {
+                "data-testid": "stTextInputRootElement",
+              },
+              style: ({ $isFocused }: { $isFocused: boolean }) => {
+                const borderColor = getBorderColor(theme.colors, $isFocused)
+                return {
+                  height: theme.sizes.minElementHeight,
+                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                  borderLeftWidth: theme.sizes.borderWidth,
+                  borderRightWidth: theme.sizes.borderWidth,
+                  borderTopWidth: theme.sizes.borderWidth,
+                  borderBottomWidth: theme.sizes.borderWidth,
 
-                borderTopColor: borderColor,
-                borderRightColor: borderColor,
-                borderBottomColor: borderColor,
-                borderLeftColor: borderColor,
+                  borderTopColor: borderColor,
+                  borderRightColor: borderColor,
+                  borderBottomColor: borderColor,
+                  borderLeftColor: borderColor,
 
-                paddingLeft: icon ? theme.spacing.sm : 0,
-              }
+                  paddingLeft: icon ? theme.spacing.sm : 0,
+                }
+              },
             },
-          },
-          StartEnhancer: {
-            style: {
-              paddingLeft: 0,
-              paddingRight: 0,
-              // Keeps emoji icons from being cut off on the right
-              minWidth: theme.iconSizes.lg,
-              // Material icons color changed as inactionable
-              color: isMaterialIcon(icon)
-                ? theme.colors.fadedText60
-                : "inherit",
+            StartEnhancer: {
+              style: {
+                paddingLeft: 0,
+                paddingRight: 0,
+                // Keeps emoji icons from being cut off on the right
+                minWidth: theme.iconSizes.lg,
+                // Material icons color changed as inactionable
+                color: isMaterialIcon(icon)
+                  ? theme.colors.fadedText60
+                  : "inherit",
+              },
             },
-          },
-        }}
-      />
-      {shouldShowInstructions && (
-        <InputInstructions
-          dirty={dirty}
-          value={uiValue ?? ""}
-          maxLength={maxChars}
-          inForm={isInForm({ formId })}
-          allowEnterToSubmit={allowEnterToSubmit}
+          }}
         />
-      )}
+        {shouldShowInstructions && (
+          <InputInstructions
+            dirty={dirty}
+            value={uiValue ?? ""}
+            maxLength={maxChars}
+            inForm={isInForm({ formId })}
+            allowEnterToSubmit={allowEnterToSubmit}
+          />
+        )}
+      </StyledInputWrapper>
     </StyledTextInput>
   )
 }

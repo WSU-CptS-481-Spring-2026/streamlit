@@ -19,3 +19,27 @@ import styled from "@emotion/styled"
 export const StyledTextInput = styled.div`
   position: relative;
 `
+export const StyledInputWrapper = styled.div`
+  position: relative;
+`
+
+export const StyledPlaceholder = styled.div<{ hasIcon?: boolean }>(
+  ({ theme, hasIcon }) => {
+    const iconOffset = `${theme.spacing.sm} + ${theme.iconSizes.lg} + ${theme.spacing.md}`
+    const leftPadding = hasIcon ? iconOffset : theme.spacing.md
+
+    return {
+      position: "absolute",
+      top: "50%",
+      transform: "translateY(-50%)",
+      left: `calc(${theme.sizes.borderWidth} + ${leftPadding})`,
+      right: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
+      color: theme.colors.fadedText60,
+      pointerEvents: "none",
+      userSelect: "none",
+      overflow: "hidden",
+      whiteSpace: "nowrap",
+      fontSize: theme.fontSizes.md, // Override isLabel's smaller font size to match input
+    }
+  }
+)
