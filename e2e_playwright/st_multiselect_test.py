@@ -30,7 +30,7 @@ from e2e_playwright.shared.app_utils import (
     get_multiselect,
 )
 
-MULTISELECT_COUNT = 21
+MULTISELECT_COUNT = 22
 
 
 def _get_multiselect_input(locator: Locator | Page, label: str) -> Locator:
@@ -554,3 +554,11 @@ def test_multiselect_custom_objects_without_eq(app: Page):
 
     # Verify both selections are visible
     expect(multiselect_elem.locator('[data-baseweb="tag"]')).to_have_count(2)
+
+
+def test_markdown_placeholder_rendering(
+    themed_app: Page, assert_snapshot: ImageCompareFunction
+):
+    """Test that markdown in placeholder is rendered correctly."""
+    multiselect = get_multiselect(themed_app, "multiselect 21 (markdown placeholder)")
+    assert_snapshot(multiselect, name="st_multiselect-markdown_placeholder")
