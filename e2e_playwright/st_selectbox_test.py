@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from e2e_playwright.conftest import ImageCompareFunction
 
 
-NUM_SELECTBOXES = 21
+NUM_SELECTBOXES = 22
 
 
 def get_selectbox_input(
@@ -467,3 +467,11 @@ def test_selectbox_session_state_sync_after_open_close(app: Page):
     # The selectbox should still display "female" (not revert to initial "male")
     expect(selectbox.get_by_text("female", exact=True)).to_be_visible()
     expect_markdown(app, "value 20: female")
+
+
+def test_markdown_placeholder_rendering(
+    themed_app: Page, assert_snapshot: ImageCompareFunction
+):
+    """Test that markdown in placeholder is rendered correctly."""
+    selectbox = get_selectbox(themed_app, "selectbox 21 (markdown placeholder)")
+    assert_snapshot(selectbox, name="st_selectbox-markdown_placeholder")

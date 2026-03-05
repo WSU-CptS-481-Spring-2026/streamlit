@@ -204,3 +204,12 @@ v20 = st.selectbox(
     key="selectbox20",
 )
 st.write("value 20:", v20)
+
+# Test markdown placeholder support
+v21 = st.selectbox(
+    "selectbox 21 (markdown placeholder)",
+    options,
+    index=None,
+    placeholder="Select **bold** and _italic_ option",
+)
+st.write("value 21:", v21)
