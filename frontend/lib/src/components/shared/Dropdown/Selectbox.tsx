@@ -50,6 +50,8 @@ export interface Props {
   labelVisibility?: LabelVisibilityOptions
   help?: string
   placeholder: string
+  /** Optional rich placeholder content (e.g., Markdown). Rendered instead of placeholder when provided and no value selected. */
+  placeholderContent?: React.ReactNode
   clearable?: boolean
   acceptNewOptions: boolean
 }
@@ -63,6 +65,7 @@ const Selectbox: FC<Props> = ({
   labelVisibility,
   help,
   placeholder,
+  placeholderContent,
   clearable,
   acceptNewOptions,
 }) => {
@@ -70,6 +73,8 @@ const Selectbox: FC<Props> = ({
   const isInSidebar = useContext(IsSidebarContext)
 
   const [value, setValue] = useState<string | null>(propValue)
+  // Track whether the user has typed filter text (to hide markdown placeholder while typing)
+  const [hasInputText, setHasInputText] = useState(false)
   // This ref is used to store the value before the user starts removing characters so that we can restore
   // the value in case the user dismisses the changes by clicking away.
   const valueBeforeRemovalRef = useRef<string | null>(value)
@@ -88,6 +93,8 @@ const Selectbox: FC<Props> = ({
         // We set the value so that BaseWeb updates the element's value while typing.
         // We don't want to commit the change yet, so we don't call onChange.
         setValue(null)
+        // Preemptively hide placeholder during removal to avoid flash
+        setHasInputText(true)
         return
       }
 
@@ -110,7 +117,18 @@ const Selectbox: FC<Props> = ({
     if (valueBeforeRemovalRef.current !== null) {
       setValue(valueBeforeRemovalRef.current)
     }
+    // Reset input text tracking on blur
+    setHasInputText(false)
   }, [])
+
+  // Track when the user types filter text (to hide markdown placeholder)
+  const handleInputChange = useCallback(
+    (event: React.SyntheticEvent<HTMLInputElement>) => {
+      const inputValue = (event.target as HTMLInputElement).value
+      setHasInputText(inputValue.length > 0)
+    },
+    []
+  )
 
   const opts = propOptions
 
@@ -146,188 +164,211 @@ const Selectbox: FC<Props> = ({
       >
         {help && <WidgetLabelHelpIcon content={help} label={label} />}
       </WidgetLabel>
-      <UISelect
-        creatable={acceptNewOptions}
-        disabled={selectDisabled}
-        labelKey="label"
-        aria-label={label || ""}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        options={selectOptions}
-        filterOptions={filterOptions}
-        clearable={clearable || false}
-        escapeClearsValue={clearable || false}
-        value={selectValue}
-        valueKey="value"
-        placeholder={selectboxPlaceholder}
-        ignoreCase={false}
-        overrides={{
-          Root: {
-            style: () => ({
+      <div style={{ position: "relative" }}>
+        {placeholderContent && !value && !hasInputText ? (
+          <div
+            style={{
+              position: "absolute",
+              top: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
+              left: `calc(${theme.sizes.borderWidth} + ${theme.spacing.md})`,
+              right: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
+              color: theme.colors.fadedText60,
+              pointerEvents: "none",
+              userSelect: "none",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              fontSize: theme.fontSizes.md,
               lineHeight: theme.lineHeights.inputWidget,
-              fontWeight: theme.fontWeights.normal,
-            }),
-          },
-          Dropdown: {
-            component: VirtualDropdown,
-            style: { boxShadow: "none", overflow: "hidden" },
-          },
-          ClearIcon: {
-            props: {
-              overrides: {
-                Svg: {
-                  style: {
-                    color: theme.colors.grayTextColor,
-                    // Setting this width and height makes the clear-icon align with dropdown arrows
-                    padding: theme.spacing.threeXS,
-                    height: theme.sizes.clearIconSize,
-                    width: theme.sizes.clearIconSize,
-                    ":hover": {
-                      fill: theme.colors.bodyText,
+              zIndex: theme.zIndices.priority,
+            }}
+          >
+            {placeholderContent}
+          </div>
+        ) : null}
+        <UISelect
+          creatable={acceptNewOptions}
+          disabled={selectDisabled}
+          labelKey="label"
+          aria-label={label || ""}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onInputChange={handleInputChange}
+          options={selectOptions}
+          filterOptions={filterOptions}
+          clearable={clearable || false}
+          escapeClearsValue={clearable || false}
+          value={selectValue}
+          valueKey="value"
+          placeholder={placeholderContent ? "" : selectboxPlaceholder}
+          ignoreCase={false}
+          overrides={{
+            Root: {
+              style: () => ({
+                lineHeight: theme.lineHeights.inputWidget,
+                fontWeight: theme.fontWeights.normal,
+              }),
+            },
+            Dropdown: {
+              component: VirtualDropdown,
+              style: { boxShadow: "none", overflow: "hidden" },
+            },
+            ClearIcon: {
+              props: {
+                overrides: {
+                  Svg: {
+                    style: {
+                      color: theme.colors.grayTextColor,
+                      // Setting this width and height makes the clear-icon align with dropdown arrows
+                      padding: theme.spacing.threeXS,
+                      height: theme.sizes.clearIconSize,
+                      width: theme.sizes.clearIconSize,
+                      ":hover": {
+                        fill: theme.colors.bodyText,
+                      },
                     },
                   },
                 },
               },
             },
-          },
-          ControlContainer: {
-            style: ({ $isFocused }: { $isFocused: boolean }) => {
-              const borderColor = getBorderColor(theme.colors, $isFocused)
-              return {
-                height: theme.sizes.minElementHeight,
+            ControlContainer: {
+              style: ({ $isFocused }: { $isFocused: boolean }) => {
+                const borderColor = getBorderColor(theme.colors, $isFocused)
+                return {
+                  height: theme.sizes.minElementHeight,
+                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+                  borderLeftWidth: theme.sizes.borderWidth,
+                  borderRightWidth: theme.sizes.borderWidth,
+                  borderTopWidth: theme.sizes.borderWidth,
+                  borderBottomWidth: theme.sizes.borderWidth,
+
+                  borderTopColor: borderColor,
+                  borderRightColor: borderColor,
+                  borderBottomColor: borderColor,
+                  borderLeftColor: borderColor,
+                }
+              },
+            },
+            IconsContainer: {
+              style: () => ({
+                paddingRight: theme.spacing.sm,
+              }),
+            },
+            Placeholder: {
+              style: () => ({
+                color: selectDisabled
+                  ? theme.colors.fadedText40
+                  : theme.colors.fadedText60,
+              }),
+            },
+            ValueContainer: {
+              style: () => ({
                 // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                borderLeftWidth: theme.sizes.borderWidth,
-                borderRightWidth: theme.sizes.borderWidth,
-                borderTopWidth: theme.sizes.borderWidth,
-                borderBottomWidth: theme.sizes.borderWidth,
-
-                borderTopColor: borderColor,
-                borderRightColor: borderColor,
-                borderBottomColor: borderColor,
-                borderLeftColor: borderColor,
-              }
+                paddingRight: theme.spacing.sm,
+                paddingLeft: theme.spacing.md,
+                paddingBottom: theme.spacing.sm,
+                paddingTop: theme.spacing.sm,
+              }),
             },
-          },
-          IconsContainer: {
-            style: () => ({
-              paddingRight: theme.spacing.sm,
-            }),
-          },
-          Placeholder: {
-            style: () => ({
-              color: selectDisabled
-                ? theme.colors.fadedText40
-                : theme.colors.fadedText60,
-            }),
-          },
-          ValueContainer: {
-            style: () => ({
-              // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-              paddingRight: theme.spacing.sm,
-              paddingLeft: theme.spacing.md,
-              paddingBottom: theme.spacing.sm,
-              paddingTop: theme.spacing.sm,
-            }),
-          },
-          Input: {
-            props: {
-              readOnly: inputReadOnly,
+            Input: {
+              props: {
+                readOnly: inputReadOnly,
+              },
+              style: () => ({
+                lineHeight: theme.lineHeights.inputWidget,
+              }),
             },
-            style: () => ({
-              lineHeight: theme.lineHeights.inputWidget,
-            }),
-          },
-          Popover: {
-            props: {
-              ignoreBoundary: isInSidebar,
-              overrides: {
-                Body: {
-                  style: () => {
-                    const lightBackground = hasLightBackgroundColor(theme)
-                    return {
-                      marginTop: theme.spacing.twoXS,
-                      marginRight: theme.spacing.none,
-                      marginBottom: theme.spacing.none,
+            Popover: {
+              props: {
+                ignoreBoundary: isInSidebar,
+                overrides: {
+                  Body: {
+                    style: () => {
+                      const lightBackground = hasLightBackgroundColor(theme)
+                      return {
+                        marginTop: theme.spacing.twoXS,
+                        marginRight: theme.spacing.none,
+                        marginBottom: theme.spacing.none,
 
-                      paddingTop: theme.spacing.sm,
-                      paddingBottom: theme.spacing.sm,
+                        paddingTop: theme.spacing.sm,
+                        paddingBottom: theme.spacing.sm,
 
-                      maxHeight: "70vh",
-                      overflow: "auto",
-                      boxSizing: "border-box",
+                        maxHeight: "70vh",
+                        overflow: "auto",
+                        boxSizing: "border-box",
 
-                      borderTopLeftRadius: theme.radii.default,
-                      borderTopRightRadius: theme.radii.default,
-                      borderBottomRightRadius: theme.radii.default,
-                      borderBottomLeftRadius: theme.radii.default,
+                        borderTopLeftRadius: theme.radii.default,
+                        borderTopRightRadius: theme.radii.default,
+                        borderBottomRightRadius: theme.radii.default,
+                        borderBottomLeftRadius: theme.radii.default,
 
-                      borderLeftWidth: lightBackground
-                        ? "0"
-                        : theme.sizes.borderWidth,
-                      borderRightWidth: lightBackground
-                        ? "0"
-                        : theme.sizes.borderWidth,
-                      borderTopWidth: lightBackground
-                        ? "0"
-                        : theme.sizes.borderWidth,
-                      borderBottomWidth: lightBackground
-                        ? "0"
-                        : theme.sizes.borderWidth,
+                        borderLeftWidth: lightBackground
+                          ? "0"
+                          : theme.sizes.borderWidth,
+                        borderRightWidth: lightBackground
+                          ? "0"
+                          : theme.sizes.borderWidth,
+                        borderTopWidth: lightBackground
+                          ? "0"
+                          : theme.sizes.borderWidth,
+                        borderBottomWidth: lightBackground
+                          ? "0"
+                          : theme.sizes.borderWidth,
 
-                      borderLeftStyle: lightBackground ? "none" : "solid",
-                      borderRightStyle: lightBackground ? "none" : "solid",
-                      borderTopStyle: lightBackground ? "none" : "solid",
-                      borderBottomStyle: lightBackground ? "none" : "solid",
+                        borderLeftStyle: lightBackground ? "none" : "solid",
+                        borderRightStyle: lightBackground ? "none" : "solid",
+                        borderTopStyle: lightBackground ? "none" : "solid",
+                        borderBottomStyle: lightBackground ? "none" : "solid",
 
-                      borderLeftColor: lightBackground
-                        ? "transparent"
-                        : theme.colors.borderColor,
-                      borderRightColor: lightBackground
-                        ? "transparent"
-                        : theme.colors.borderColor,
-                      borderTopColor: lightBackground
-                        ? "transparent"
-                        : theme.colors.borderColor,
-                      borderBottomColor: lightBackground
-                        ? "transparent"
-                        : theme.colors.borderColor,
+                        borderLeftColor: lightBackground
+                          ? "transparent"
+                          : theme.colors.borderColor,
+                        borderRightColor: lightBackground
+                          ? "transparent"
+                          : theme.colors.borderColor,
+                        borderTopColor: lightBackground
+                          ? "transparent"
+                          : theme.colors.borderColor,
+                        borderBottomColor: lightBackground
+                          ? "transparent"
+                          : theme.colors.borderColor,
 
-                      boxShadow: lightBackground
-                        ? "0px 4px 16px rgba(0, 0, 0, 0.16)"
-                        : "0px 4px 16px rgba(0, 0, 0, 0.7)",
-                    }
+                        boxShadow: lightBackground
+                          ? "0px 4px 16px rgba(0, 0, 0, 0.16)"
+                          : "0px 4px 16px rgba(0, 0, 0, 0.7)",
+                      }
+                    },
                   },
                 },
               },
             },
-          },
 
-          SingleValue: {
-            style: () => ({
-              // remove margin from select value so that there is no jumpb, e.g. when pressing backspace on a selected option and removing a character.
-              marginLeft: theme.spacing.none,
-            }),
-          },
-          SelectArrow: {
-            component: ChevronDown,
-            props: {
-              style: {
-                ...(selectDisabled && {
-                  cursor: "not-allowed",
-                }),
-              },
-              overrides: {
-                Svg: {
-                  style: () => ({
-                    width: theme.iconSizes.xl,
-                    height: theme.iconSizes.xl,
+            SingleValue: {
+              style: () => ({
+                // remove margin from select value so that there is no jumpb, e.g. when pressing backspace on a selected option and removing a character.
+                marginLeft: theme.spacing.none,
+              }),
+            },
+            SelectArrow: {
+              component: ChevronDown,
+              props: {
+                style: {
+                  ...(selectDisabled && {
+                    cursor: "not-allowed",
                   }),
+                },
+                overrides: {
+                  Svg: {
+                    style: () => ({
+                      width: theme.iconSizes.xl,
+                      height: theme.iconSizes.xl,
+                    }),
+                  },
                 },
               },
             },
-          },
-        }}
-      />
+          }}
+        />
+      </div>
     </div>
   )
 }
