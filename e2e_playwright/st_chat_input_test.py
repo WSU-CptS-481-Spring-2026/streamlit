@@ -338,6 +338,11 @@ def test_chat_input_rendering(themed_app: Page, assert_snapshot: ImageCompareFun
         get_element_by_key(themed_app, "audio_column_b"),
         name="st_chat_input-column_audio_with_files",
     )
+    goto_chat_input(themed_app, "markdown_placeholder")
+    assert_snapshot(
+        get_element_by_key(themed_app, "markdown_placeholder"),
+        name="st_chat_input-markdown_placeholder",
+    )
 
 
 @use_chat_input("bottom_max_chars")
@@ -916,10 +921,8 @@ def test_dynamic_chat_input_props(
     dynamic_chat_input = get_element_by_key(app, "dynamic_chat_input_with_key")
     expect(dynamic_chat_input).to_be_visible()
 
-    # Initial state (placeholder is rendered as attribute, not visible text)
-    expect(dynamic_chat_input.locator("textarea")).to_have_attribute(
-        "placeholder", "Initial dynamic chat input"
-    )
+    # Initial state - placeholder is rendered as custom element, not native attribute
+    expect(dynamic_chat_input).to_contain_text("Initial dynamic chat input")
     assert_snapshot(dynamic_chat_input, name="st_chat_input-dynamic_initial")
 
     # Type something and submit
@@ -935,9 +938,7 @@ def test_dynamic_chat_input_props(
     click_toggle(app, "Update chat input props")
 
     # New chat input is rendered with updated placeholder text
-    expect(dynamic_chat_input.locator("textarea")).to_have_attribute(
-        "placeholder", "Updated dynamic chat input"
-    )
+    expect(dynamic_chat_input).to_contain_text("Updated dynamic chat input")
 
     dynamic_chat_input.scroll_into_view_if_needed()
 

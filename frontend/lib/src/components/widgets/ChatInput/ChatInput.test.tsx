@@ -37,6 +37,12 @@ import { WidgetStateManager } from "~lib/WidgetStateManager"
 
 import ChatInput, { Props } from "./ChatInput"
 
+// Mock StreamlitMarkdown to avoid CSS selector issues in JSDOM with
+// Emotion-generated styles when combined with Tooltip components
+vi.mock("~lib/components/shared/StreamlitMarkdown", () => ({
+  default: ({ source }: { source: string }) => <span>{source}</span>,
+}))
+
 const getProps = (
   elementProps: Partial<ChatInputProto> = {},
   widgetProps: Partial<Props> = {}
@@ -109,8 +115,8 @@ describe("ChatInput widget", () => {
     const props = getProps()
     render(<ChatInput {...props} />)
 
-    const chatInput = screen.getByTestId("stChatInputTextArea")
-    expect(chatInput).toHaveAttribute("placeholder", props.element.placeholder)
+    const placeholder = screen.getByTestId("stChatInputPlaceholder")
+    expect(placeholder).toHaveTextContent(props.element.placeholder ?? "")
   })
 
   it("sets the aria label to the placeholder", () => {
@@ -565,8 +571,8 @@ describe("ChatInput widget", () => {
     expect(fileInput).toHaveAttribute("multiple")
 
     // Verify placeholder text is displayed
-    const textarea = screen.getByTestId("stChatInputTextArea")
-    expect(textarea).toHaveAttribute("placeholder", "Upload a directory")
+    const placeholder = screen.getByTestId("stChatInputPlaceholder")
+    expect(placeholder).toHaveTextContent("Upload a directory")
 
     // The tooltip hover target should be present for directory upload
     const tooltipTarget = uploadButton.querySelector(".stTooltipHoverTarget")
