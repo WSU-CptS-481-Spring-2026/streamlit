@@ -49,6 +49,7 @@ import { useWaveformController } from "~lib/components/audio"
 import { LOG } from "~lib/components/ChatInput/logger"
 import Icon, { DynamicIcon } from "~lib/components/shared/Icon"
 import InputInstructions from "~lib/components/shared/InputInstructions/InputInstructions"
+import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import Tooltip, { Placement } from "~lib/components/shared/Tooltip"
 import {
   UploadedStatus,
@@ -82,6 +83,7 @@ import {
   StyledInputInstructions,
   StyledInputRow,
   StyledLeftCluster,
+  StyledPlaceholder,
   StyledRightCluster,
   StyledSendIconButton,
   StyledTextareaWrapper,
@@ -168,6 +170,17 @@ function ChatInput({
   const theme = useEmotionTheme()
 
   const { placeholder, maxChars } = element
+
+  // Create markdown placeholder content if placeholder exists.
+  // We only create content if the value is empty (avoids unnecessary rendering).
+  const placeholderContent = placeholder ? (
+    <StreamlitMarkdown
+      source={placeholder}
+      allowHTML={false}
+      isLabel
+      inheritFont
+    />
+  ) : null
 
   const counterRef = useRef(0)
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -855,10 +868,15 @@ function ChatInput({
               StyledTextareaWrapper uses CSS (order, width) to visually move it above buttons when stacked */}
           {!isRecording && (
             <StyledTextareaWrapper isStacked={isStacked}>
+              {!value && placeholderContent && (
+                <StyledPlaceholder data-testid="stChatInputPlaceholder">
+                  {placeholderContent}
+                </StyledPlaceholder>
+              )}
               <UITextArea
                 inputRef={chatInputRef}
                 value={value}
-                placeholder={placeholder}
+                placeholder={placeholderContent ? "" : placeholder}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 aria-label={placeholder}

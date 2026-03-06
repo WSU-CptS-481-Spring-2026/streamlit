@@ -75,8 +75,26 @@ export const StyledTextareaWrapper = styled.div<{ isStacked?: boolean }>(
     display: "flex",
     alignItems: "center",
     minWidth: 0,
+    position: "relative",
   })
 )
+
+export const StyledPlaceholder = styled.div(({ theme }) => ({
+  position: "absolute",
+  top: "50%",
+  transform: "translateY(-50%)",
+  left: theme.spacing.none,
+  right: theme.spacing.none,
+  pointerEvents: "none",
+  userSelect: "none",
+  color: theme.colors.fadedText60,
+  overflow: "hidden",
+  whiteSpace: "nowrap",
+  fontSize: theme.fontSizes.md,
+  "& p": {
+    marginBottom: theme.spacing.none,
+  },
+}))
 
 // Left cluster - flex-shrink so it collapses when empty
 export const StyledLeftCluster = styled.div(({ theme }) => ({
