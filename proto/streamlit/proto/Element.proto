@@ -44,6 +44,7 @@ import "streamlit/proto/GraphVizChart.proto";
 import "streamlit/proto/Html.proto";
 import "streamlit/proto/IFrame.proto";
 import "streamlit/proto/Image.proto";
+import "streamlit/proto/ImageUploader.proto";
 import "streamlit/proto/Json.proto";
 import "streamlit/proto/LinkButton.proto";
 import "streamlit/proto/NumberInput.proto";
@@ -111,6 +112,7 @@ message Element {
     Html html = 54;
     IFrame iframe = 38;
     ImageList imgs = 6;
+    ImageUploader image_uploader = 64;
     Json json = 31;
     LinkButton link_button = 51;
     Markdown markdown = 29;
@@ -136,7 +138,7 @@ message Element {
     Video video = 14;
     Heading heading = 47;
     Code code = 48;
-    // Next ID: 64
+    // Next ID: 65
   }
 
   reserved 3, 9, 10, 11, 17;
