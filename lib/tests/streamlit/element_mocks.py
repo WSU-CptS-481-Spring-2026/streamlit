@@ -70,6 +70,7 @@ WIDGET_ELEMENTS: list[tuple[str, ELEMENT_PRODUCER]] = [
     ("audio_input", lambda: st.audio_input("Record me")),
     ("camera_input", lambda: st.camera_input("Take a picture")),
     ("file_uploader", lambda: st.file_uploader("Upload me")),
+    ("image_uploader", lambda: st.image_uploader("Upload an image")),
     # selectors
     ("feedback", lambda: st.feedback()),
     ("multiselect", lambda: st.multiselect("Show me", ["a", "b", "c"])),
