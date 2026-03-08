@@ -41,6 +41,7 @@ import {
   Feedback as FeedbackProto,
   FileUploader as FileUploaderProto,
   GraphVizChart as GraphVizChartProto,
+  ImageUploader as ImageUploaderProto,
   Heading as HeadingProto,
   Html as HtmlProto,
   IFrame as IFrameProto,
@@ -147,6 +148,9 @@ const DownloadButton = lazy(
 )
 const Feedback = lazy(() => import("~lib/components/widgets/Feedback"))
 const FileUploader = lazy(() => import("~lib/components/widgets/FileUploader"))
+const ImageUploader = lazy(
+  () => import("~lib/components/widgets/ImageUploader")
+)
 const FormSubmitContent = lazy(() =>
   import("~lib/components/widgets/Form").then(module => ({
     default: module.FormSubmitContent,
@@ -594,6 +598,21 @@ const RawElementNodeRenderer = (
         <FileUploader
           key={fileUploaderProto.id}
           element={fileUploaderProto}
+          uploadClient={props.uploadClient}
+          {...widgetProps}
+        />
+      )
+    }
+
+    case "imageUploader": {
+      const imageUploaderProto = node.element
+        .imageUploader as ImageUploaderProto
+      widgetProps.disabled =
+        widgetProps.disabled || imageUploaderProto.disabled
+      return (
+        <ImageUploader
+          key={imageUploaderProto.id}
+          element={imageUploaderProto}
           uploadClient={props.uploadClient}
           {...widgetProps}
         />
