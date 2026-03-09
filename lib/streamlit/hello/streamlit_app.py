@@ -47,6 +47,10 @@ def run() -> None:
                     title="Animation demo",
                     icon=":material/animation:",
                 ),
+                st.Page(
+                    dir_path / "form_submission_demo.py",
+                    title="Form submission demo",
+                ),
             ]
         }
     )
