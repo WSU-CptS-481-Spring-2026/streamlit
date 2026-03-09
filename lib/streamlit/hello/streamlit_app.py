@@ -47,6 +47,10 @@ def run() -> None:
                     title="Animation demo",
                     icon=":material/animation:",
                 ),
+                st.Page(
+                    dir_path / "anchors_disabled_demo.py",
+                    title="Anchors disabled demo",
+                ),
             ]
         }
     )

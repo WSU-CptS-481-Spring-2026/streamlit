@@ -323,3 +323,31 @@ describe("Markdown badge with help", () => {
     expect(tooltip).toBeVisible()
   })
 })
+
+describe("Markdown element with anchors", () => {
+  it("passes anchors=true to StreamlitMarkdown when enabled", () => {
+    const element = MarkdownProto.create({
+      body: "# Header\nSome text",
+      anchors: true,
+      allowHtml: false,
+    })
+    render(<Markdown element={element} />)
+
+    const markdown = screen.getByTestId("stMarkdownContainer")
+    expect(markdown).toBeInTheDocument()
+    expect(markdown).toHaveTextContent("Header")
+  })
+
+  it("passes anchors=false to StreamlitMarkdown when disabled", () => {
+    const element = MarkdownProto.create({
+      body: "# Header\nSome text",
+      anchors: false,
+      allowHtml: false,
+    })
+    render(<Markdown element={element} />)
+
+    const markdown = screen.getByTestId("stMarkdownContainer")
+    expect(markdown).toBeInTheDocument()
+    expect(markdown).toHaveTextContent("Header")
+  })
+})

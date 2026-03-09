@@ -37,4 +37,5 @@ message Markdown {
   Type element_type = 4;
 
   string help = 5;
+  bool anchors = 6;
 }

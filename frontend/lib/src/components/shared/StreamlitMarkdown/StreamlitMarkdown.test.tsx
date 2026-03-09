@@ -1057,3 +1057,18 @@ describe("CustomMediaTag", () => {
     )
   })
 })
+
+describe("enableAnchors functionality", () => {
+  it("preserves header text even if anchor is disabled", () => {
+    const { container } = render(
+      <StreamlitMarkdown
+        source="# Header One\n## Header Two"
+        allowHTML={false}
+        enableAnchors={false}
+      />
+    )
+
+    expect(container).toHaveTextContent("Header One")
+    expect(container).toHaveTextContent("Header Two")
+  })
+})
