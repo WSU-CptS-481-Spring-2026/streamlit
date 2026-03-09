@@ -113,6 +113,29 @@ def get_camera_input(locator: Locator | Page, label: str | re.Pattern[str]) -> L
     return element
 
 
+def get_image_uploader(
+    locator: Locator | Page, label: str | re.Pattern[str]
+) -> Locator:
+    """Get an image uploader with the given label.
+
+    Parameters
+    ----------
+    locator : Locator | Page
+        The locator to search for the element.
+
+    label : str | re.Pattern[str]
+        The label of the element to get.
+
+    Returns
+    -------
+    Locator
+        The element.
+    """
+    element = locator.get_by_test_id("stImageUploader").filter(has_text=label)
+    expect(element).to_be_visible()
+    return element
+
+
 def get_color_picker(locator: Locator | Page, label: str | re.Pattern[str]) -> Locator:
     """Get a color picker with the given label.
 
