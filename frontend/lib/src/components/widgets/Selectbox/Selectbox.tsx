@@ -19,6 +19,7 @@ import { FC, memo, useCallback } from "react"
 import { Selectbox as SelectboxProto } from "@streamlit/protobuf"
 
 import UISelectbox from "~lib/components/shared/Dropdown"
+import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import {
   useBasicWidgetState,
   ValueWithSource,
@@ -110,6 +111,16 @@ const Selectbox: FC<Props> = ({
 
   const clearable = isNullOrUndefined(element.default) && !disabled
 
+  // Build the placeholder content with Markdown support
+  const placeholderContent = placeholder ? (
+    <StreamlitMarkdown
+      source={placeholder}
+      allowHTML={false}
+      isLabel
+      inheritFont
+    />
+  ) : undefined
+
   return (
     <UISelectbox
       label={label}
@@ -119,7 +130,8 @@ const Selectbox: FC<Props> = ({
       onChange={onChange}
       value={value}
       help={help}
-      placeholder={placeholder}
+      placeholder=""
+      placeholderContent={placeholderContent}
       clearable={clearable}
       acceptNewOptions={acceptNewOptions ?? false}
     />

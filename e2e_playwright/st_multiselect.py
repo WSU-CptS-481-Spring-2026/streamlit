@@ -249,3 +249,11 @@ i20 = st.multiselect(
     key="multiselect_custom_objects",
 )
 st.text(f"value 20: {[opt.value for opt in i20]}")
+
+# Test markdown placeholder support
+i21 = st.multiselect(
+    "multiselect 21 (markdown placeholder)",
+    options=["a", "b", "c"],
+    placeholder="Select **bold** and _italic_ option",
+)
+st.text(f"value 21: {i21}")

@@ -102,6 +102,10 @@ st.text_input(
 
 st.text_input("text input 17 (width=200px)", "width test", width=200)
 st.text_input("text input 18 (width='stretch')", "width test", width="stretch")
+st.text_input(
+    "text input 19 (markdown placeholder)",
+    placeholder="**Bold** and *italic* placeholder",
+)
 
 st.markdown("Dynamic text input:")
 

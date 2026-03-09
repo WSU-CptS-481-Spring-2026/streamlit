@@ -177,4 +177,15 @@ describe("Selectbox widget", () => {
 
     expect(screen.getByText("Please select an option...")).toBeInTheDocument()
   })
+
+  it("supports Markdown in placeholder", () => {
+    const props = getProps({
+      placeholder: "Select **option** here",
+      default: null,
+    })
+    render(<Selectbox {...props} />)
+
+    const strong = screen.getByText("option")
+    expect(strong.tagName.toLowerCase()).toBe("strong")
+  })
 })

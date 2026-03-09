@@ -30,6 +30,12 @@ st.write("value 4:", v4)
 v5 = st.text_area("text area 5 (placeholder)", placeholder="Placeholder")
 st.write("value 5:", v5)
 
+st.text_area(
+    "text area 5.5 (markdown placeholder)",
+    placeholder="**Bold**, *italic*, and `code`",
+    key="text_area_5_5",
+)
+
 v6 = st.text_area("text area 6 (disabled)", "default text", disabled=True)
 st.write("value 6:", v6)
 

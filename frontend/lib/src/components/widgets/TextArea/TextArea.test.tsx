@@ -143,8 +143,19 @@ describe("TextArea widget", () => {
     const props = getProps()
     render(<TextArea {...props} />)
 
-    const textArea = screen.getByRole("textbox")
-    expect(textArea).toHaveAttribute("placeholder", props.element.placeholder)
+    // Placeholder is rendered via StyledPlaceholder with Markdown support
+    expect(screen.getByText(props.element.placeholder)).toBeInTheDocument()
+  })
+
+  it("renders Markdown in placeholder", () => {
+    const props = getProps({ placeholder: "**Bold** and *italic*" })
+    render(<TextArea {...props} />)
+
+    // Check that Markdown is rendered (bold text)
+    const placeholder = screen.getByText((_, element) => {
+      return element?.tagName === "STRONG" && element?.textContent === "Bold"
+    })
+    expect(placeholder).toBeInTheDocument()
   })
 
   it("can be disabled", () => {

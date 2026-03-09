@@ -200,6 +200,17 @@ describe("Multiselect widget", () => {
         screen.queryByText("No options to select")
       ).not.toBeInTheDocument()
     })
+
+    it("supports Markdown in placeholder", () => {
+      const props = getProps({
+        default: [],
+        placeholder: "Select **bold** option",
+      })
+      render(<Multiselect {...props} />)
+
+      const strong = screen.getByText("bold")
+      expect(strong.tagName.toLowerCase()).toBe("strong")
+    })
   })
 
   it("renders options", async () => {

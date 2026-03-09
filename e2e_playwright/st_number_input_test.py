@@ -30,7 +30,7 @@ from e2e_playwright.shared.app_utils import (
     reset_hovering,
 )
 
-NUMBER_INPUT_COUNT = 20
+NUMBER_INPUT_COUNT = 21
 
 
 def test_number_input_widget_display(
@@ -84,6 +84,10 @@ def test_number_input_widget_display(
     assert_snapshot(
         get_number_input(themed_app, "number input 11 (value=None)"),
         name="st_number_input-value_none",
+    )
+    assert_snapshot(
+        get_element_by_key(themed_app, "number_input_11_5"),
+        name="st_number_input-markdown_placeholder",
     )
     assert_snapshot(
         get_element_by_key(themed_app, "number_input_12"),

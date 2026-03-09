@@ -312,3 +312,10 @@ if key is None or key == "audio_sample_rate":
 
             # Play the audio
             st.audio(audio_sample_rate_value.audio)
+
+if key is None or key == "markdown_placeholder":
+    markdown_placeholder_value = st.container().chat_input(
+        placeholder="Type with **bold**, *italic*, `code` and :rainbow[rainbow] formatting",
+        key="markdown_placeholder",
+    )
+    st.write("markdown_placeholder - value:", markdown_placeholder_value)

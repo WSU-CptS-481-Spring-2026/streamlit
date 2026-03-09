@@ -21,3 +21,26 @@ export const StyledUISelect = styled.div(({ theme }) => ({
     background: theme.colors.fadedText05,
   },
 }))
+
+export const StyledInputWrapper = styled.div`
+  position: relative;
+`
+
+export const StyledPlaceholder = styled.div(({ theme }) => {
+  const offset = `calc(${theme.sizes.borderWidth} + ${theme.spacing.md})`
+
+  return {
+    position: "absolute",
+    top: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
+    left: offset,
+    right: `calc(${theme.sizes.borderWidth} + ${theme.spacing.sm})`,
+    color: theme.colors.fadedText60,
+    pointerEvents: "none",
+    userSelect: "none",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    fontSize: theme.fontSizes.md,
+    lineHeight: theme.lineHeights.inputWidget,
+    zIndex: theme.zIndices.priority,
+  }
+})
