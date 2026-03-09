@@ -135,6 +135,30 @@ class StMarkdownAPITest(DeltaGeneratorTestCase):
             # The third time the cached function is called, the replay function is called
             replay_cached_messages_mock.assert_called()
 
+    def test_st_markdown_anchors_default(self):
+        """Test that st.markdown defaults to anchors=True."""
+        st.markdown("# Header\nSome text")
+
+        element = self.get_delta_from_queue().new_element
+        assert element.markdown.body == "# Header\nSome text"
+        assert element.markdown.anchors is True
+
+    def test_st_markdown_anchors_enabled(self):
+        """Test st.markdown with explicit declaration of anchors being True."""
+        st.markdown("# Header\nSome text", anchors=True)
+
+        element = self.get_delta_from_queue().new_element
+        assert element.markdown.body == "# Header\nSome text"
+        assert element.markdown.anchors is True
+
+    def test_st_markdown_anchors_disabled(self):
+        """Test st.markdown where anchors are disabled."""
+        st.markdown("# Header\nSome text", anchors=False)
+
+        element = self.get_delta_from_queue().new_element
+        assert element.markdown.body == "# Header\nSome text"
+        assert element.markdown.anchors is False
+
 
 class StCaptionAPITest(DeltaGeneratorTestCase):
     """Test st.caption APIs."""

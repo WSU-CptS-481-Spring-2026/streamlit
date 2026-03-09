@@ -147,6 +147,11 @@ export interface Props {
   isLabel?: boolean
 
   /**
+   * Whether to enable anchor links for headers h1-h6. Default value is true.
+   */
+  enableAnchors?: boolean
+
+  /**
    * Make the label bold
    */
   boldLabel?: boolean
@@ -402,12 +407,17 @@ export const CustomHeading: FC<HeadingProps> = ({
   children,
   ...rest
 }) => {
-  const anchor = rest["data-anchor"]
+  const { "data-anchor": anchor, ...baseTagProps } = rest
+  const enableAnchors = useContext(AnchorsContext)
+
+  const hideAnchor = enableAnchors === false ? true : undefined
+
   return (
     <HeadingWithActionElements
       tag={node.tagName}
       anchor={anchor}
-      tagProps={rest}
+      hideAnchor={hideAnchor}
+      tagProps={baseTagProps}
     >
       {children}
     </HeadingWithActionElements>
@@ -442,6 +452,11 @@ export interface RenderedMarkdownProps {
    * When present, :help[] markers in the source will use this text.
    */
   helpText?: string
+
+  /**
+   * Whether to enable anchor links for headers h1-h6. Defaults to true.
+   */
+  enableAnchors?: boolean
 }
 
 export type CustomCodeTagProps = JSX.IntrinsicElements["code"] &
@@ -514,6 +529,8 @@ export const CustomMediaTag: FC<
 
 const HelpTextContext = createContext<string | undefined>(undefined)
 HelpTextContext.displayName = "HelpTextContext"
+const AnchorsContext = createContext<boolean | undefined>(undefined)
+AnchorsContext.displayName = "AnchorsContext"
 
 interface CustomHelpIconProps {
   children?: string
@@ -934,6 +951,7 @@ export const RenderedMarkdown = memo(function RenderedMarkdown({
   isLabel,
   disableLinks,
   helpText,
+  enableAnchors,
 }: Readonly<RenderedMarkdownProps>): ReactElement {
   const theme = useEmotionTheme()
 
@@ -1066,21 +1084,23 @@ export const RenderedMarkdown = memo(function RenderedMarkdown({
   }
 
   return (
-    <HelpTextContext.Provider value={helpText}>
-      <ErrorBoundary>
-        <ReactMarkdown
-          remarkPlugins={remarkPlugins}
-          rehypePlugins={rehypePlugins}
-          components={renderers}
-          urlTransform={transformLinkUri}
-          disallowedElements={disallowed}
-          // unwrap and render children from invalid markdown
-          unwrapDisallowed={true}
-        >
-          {processedSource}
-        </ReactMarkdown>
-      </ErrorBoundary>
-    </HelpTextContext.Provider>
+    <AnchorsContext.Provider value={enableAnchors}>
+      <HelpTextContext.Provider value={helpText}>
+        <ErrorBoundary>
+          <ReactMarkdown
+            remarkPlugins={remarkPlugins}
+            rehypePlugins={rehypePlugins}
+            components={renderers}
+            urlTransform={transformLinkUri}
+            disallowedElements={disallowed}
+            // unwrap and render children from invalid markdown
+            unwrapDisallowed={true}
+          >
+            {processedSource}
+          </ReactMarkdown>
+        </ErrorBoundary>
+      </HelpTextContext.Provider>
+    </AnchorsContext.Provider>
   )
 })
 
@@ -1100,6 +1120,7 @@ const StreamlitMarkdown: FC<Props> = ({
   isToast,
   inheritFont,
   helpText,
+  enableAnchors,
 }) => {
   const isInDialog = useContext(IsDialogContext)
 
@@ -1121,6 +1142,7 @@ const StreamlitMarkdown: FC<Props> = ({
         isLabel={isLabel}
         disableLinks={disableLinks}
         helpText={helpText}
+        enableAnchors={enableAnchors}
       />
     </StyledStreamlitMarkdown>
   )

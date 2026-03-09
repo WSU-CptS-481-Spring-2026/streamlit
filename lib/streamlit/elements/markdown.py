@@ -46,6 +46,7 @@ class MarkdownMixin:
         help: str | None = None,
         width: Width = "stretch",
         text_alignment: TextAlignment = "left",
+        anchors: bool = True,
     ) -> DeltaGenerator:
         r"""Display string formatted as Markdown.
 
@@ -147,6 +148,10 @@ class MarkdownMixin:
                 ``width="content"`` with short text, the alignment may not be
                 noticeable.
 
+        anchors: bool
+            Whether to enable anchor links for headers h1-h6. Works similar to the
+            st.header and st.subheader anchor.
+
         Examples
         --------
         >>> import streamlit as st
@@ -175,6 +180,7 @@ class MarkdownMixin:
         markdown_proto.body = clean_text(body)
         markdown_proto.allow_html = unsafe_allow_html
         markdown_proto.element_type = MarkdownProto.Type.NATIVE
+        markdown_proto.anchors = anchors
         if help:
             markdown_proto.help = help
 
