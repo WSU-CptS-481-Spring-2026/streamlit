@@ -20,6 +20,7 @@ import {
   ReactNode,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react"
 
@@ -88,13 +89,38 @@ function Form(props: Props): ReactElement {
   // flag when our scriptRunState is NOT_RUNNING. (If the script is still
   // running, there might be an incoming SubmitButton delta that we just
   // haven't seen yet.)
-  const [showWarning, setShowWarning] = useState(false)
+  const [warningTimedOut, setWarningTimedOut] = useState(false)
+  const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  if (hasSubmitButton && showWarning) {
-    setShowWarning(false)
-  } else if (!hasSubmitButton && !showWarning && scriptNotRunning) {
-    setShowWarning(true)
-  }
+  useEffect(() => {
+    // Clear any pending timeout
+    if (pendingTimeoutRef.current) {
+      clearTimeout(pendingTimeoutRef.current)
+      pendingTimeoutRef.current = null
+    }
+
+    // If script is still running, don't schedule warning
+    if (!scriptNotRunning) {
+      return
+    }
+
+    // Schedule warning if no submit button exists
+    if (!hasSubmitButton) {
+      pendingTimeoutRef.current = setTimeout(() => {
+        setWarningTimedOut(true)
+      }, 1000)
+    }
+
+    return () => {
+      if (pendingTimeoutRef.current) {
+        clearTimeout(pendingTimeoutRef.current)
+      }
+    }
+  }, [hasSubmitButton, scriptNotRunning])
+
+  // Derive whether to show warning: timeout fired AND still no submit button
+  // This automatically hides the warning if submit button arrives, without calling setState
+  const showWarning = warningTimedOut && !hasSubmitButton
 
   let submitWarning: ReactElement | undefined
   if (showWarning) {
