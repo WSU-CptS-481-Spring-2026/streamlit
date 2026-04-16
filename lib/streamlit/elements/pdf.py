@@ -52,6 +52,8 @@ class PdfMixin:
     def pdf(
         self,
         data: PdfData,
+        find: bool = False,
+        findQuery: str | None = None,
         *,
         height: HeightWithoutContent = 500,
         key: str | None = None,
@@ -111,14 +113,23 @@ class PdfMixin:
         if pdf_component is None:
             return self._show_pdf_warning()
 
-        return self._call_pdf_component(pdf_component, data, height, key)
+        return self._call_pdf_component(
+            pdf_component,
+            data,
+            height,
+            key,
+            find=find,
+            findQuery=findQuery,
+)
 
     def _call_pdf_component(
         self,
         pdf_component: Any,
         data: PdfData,
+
         height: HeightWithoutContent,
         key: str | None,
+
     ) -> DeltaGenerator:
         """Call the custom PDF component with the provided data."""
         # Validate height parameter after confirming component is available
@@ -171,6 +182,8 @@ class PdfMixin:
             file=file_param,
             height=component_height,
             key=key,
+            find=find,
+            findQuery=findQuery,
         )
         return cast("DeltaGenerator", result)
 

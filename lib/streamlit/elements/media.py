@@ -496,6 +496,7 @@ def _marshall_av_media(
     proto.url = file_url
 
 
+# refactoring here
 def marshall_video(
     dg: DeltaGenerator,
     coordinates: str,
@@ -757,6 +758,7 @@ def _maybe_convert_to_wav_bytes(data: MediaData, sample_rate: int | None) -> Med
     return data
 
 
+# refactor here
 def marshall_audio(
     dg: DeltaGenerator,
     coordinates: str,
