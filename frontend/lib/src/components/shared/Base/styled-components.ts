@@ -88,3 +88,37 @@ export const getInputBorderStyles = (
   // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
   return getLonghandBorderStyles(borderWidth, borderColor)
 }
+
+interface ClearIconStyleTheme {
+  colors: Pick<EmotionThemeColors, "grayTextColor" | "bodyText">
+  spacing: {
+    threeXS: CSSProperties["padding"]
+  }
+  sizes: {
+    clearIconSize: CSSProperties["height"]
+  }
+}
+
+type ClearIconSvgStyle = CSSProperties & {
+  ":hover": {
+    fill: CSSProperties["fill"]
+  }
+}
+
+/**
+ * Helper function to handle the shared styles for clear icons in baseweb input widgets
+ * @param theme Theme object containing the necessary properties for styling the icon
+ * @returns CSSProperties object with the styles for the clear icon, including a hover state
+ */
+export const getClearIconSvgStyle = (
+  theme: ClearIconStyleTheme
+): ClearIconSvgStyle => ({
+  color: theme.colors.grayTextColor,
+  // Setting this width and height makes the clear-icon align with dropdown arrows.
+  padding: theme.spacing.threeXS,
+  height: theme.sizes.clearIconSize,
+  width: theme.sizes.clearIconSize,
+  ":hover": {
+    fill: theme.colors.bodyText,
+  },
+})

@@ -33,7 +33,10 @@ import { DateInput as DateInputProto } from "@streamlit/protobuf"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
 import { LibConfigContext } from "~lib/components/core/LibConfigContext"
-import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
+import {
+  getClearIconSvgStyle,
+  getInputBorderStyles,
+} from "~lib/components/shared/Base/styled-components"
 import Icon from "~lib/components/shared/Icon"
 import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import Tooltip, { Placement } from "~lib/components/shared/Tooltip"
@@ -419,16 +422,7 @@ function DateInput({
                   props: {
                     overrides: {
                       Svg: {
-                        style: {
-                          color: colors.grayTextColor,
-                          // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
-                          padding: spacing.threeXS,
-                          height: sizes.clearIconSize,
-                          width: sizes.clearIconSize,
-                          ":hover": {
-                            fill: colors.bodyText,
-                          },
-                        },
+                        style: getClearIconSvgStyle(theme),
                       },
                     },
                   },

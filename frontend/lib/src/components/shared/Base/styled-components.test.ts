@@ -17,6 +17,7 @@
 import { mockTheme } from "~lib/mocks/mockTheme"
 
 import {
+  getClearIconSvgStyle,
   getInputBorderStyles,
   getLonghandBorderStyles,
 } from "./styled-components"
@@ -85,6 +86,20 @@ describe("getLonghandBorderStyles", () => {
       borderRightColor: mockTheme.emotion.colors.redTextColor,
       borderBottomColor: mockTheme.emotion.colors.redTextColor,
       borderLeftColor: mockTheme.emotion.colors.redTextColor,
+    })
+  })
+})
+
+describe("getClearIconSvgStyle", () => {
+  it("returns shared clear icon styles", () => {
+    expect(getClearIconSvgStyle(mockTheme.emotion)).toEqual({
+      color: mockTheme.emotion.colors.grayTextColor,
+      padding: mockTheme.emotion.spacing.threeXS,
+      height: mockTheme.emotion.sizes.clearIconSize,
+      width: mockTheme.emotion.sizes.clearIconSize,
+      ":hover": {
+        fill: mockTheme.emotion.colors.bodyText,
+      },
     })
   })
 })

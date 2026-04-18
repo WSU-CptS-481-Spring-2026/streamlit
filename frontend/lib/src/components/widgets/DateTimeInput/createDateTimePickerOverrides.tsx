@@ -19,7 +19,10 @@ import type { DatepickerProps } from "baseui/datepicker"
 import { ChevronDown } from "baseui/icon"
 import { PLACEMENT } from "baseui/popover"
 
-import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
+import {
+  getClearIconSvgStyle,
+  getInputBorderStyles,
+} from "~lib/components/shared/Base/styled-components"
 import Icon from "~lib/components/shared/Icon"
 import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import Tooltip, { Placement } from "~lib/components/shared/Tooltip"
@@ -177,15 +180,7 @@ export const createDateTimePickerOverrides = ({
           props: {
             overrides: {
               Svg: {
-                style: {
-                  color: theme.colors.grayTextColor,
-                  padding: theme.spacing.threeXS,
-                  height: theme.sizes.clearIconSize,
-                  width: theme.sizes.clearIconSize,
-                  ":hover": {
-                    fill: theme.colors.bodyText,
-                  },
-                },
+                style: getClearIconSvgStyle(theme),
               },
             },
           },

@@ -28,7 +28,10 @@ import { ChevronDown } from "baseui/icon"
 import { type OnChangeParams, Select as UISelect } from "baseui/select"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
-import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
+import {
+  getClearIconSvgStyle,
+  getInputBorderStyles,
+} from "~lib/components/shared/Base/styled-components"
 import VirtualDropdown from "~lib/components/shared/Dropdown/VirtualDropdown"
 import {
   WidgetLabel,
@@ -176,16 +179,7 @@ const Selectbox: FC<Props> = ({
             props: {
               overrides: {
                 Svg: {
-                  style: {
-                    color: theme.colors.grayTextColor,
-                    // Setting this width and height makes the clear-icon align with dropdown arrows
-                    padding: theme.spacing.threeXS,
-                    height: theme.sizes.clearIconSize,
-                    width: theme.sizes.clearIconSize,
-                    ":hover": {
-                      fill: theme.colors.bodyText,
-                    },
-                  },
+                  style: getClearIconSvgStyle(theme),
                 },
               },
             },

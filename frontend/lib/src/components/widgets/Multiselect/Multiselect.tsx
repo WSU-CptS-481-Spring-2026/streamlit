@@ -38,7 +38,10 @@ import { without } from "lodash-es"
 import { MultiSelect as MultiSelectProto } from "@streamlit/protobuf"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
-import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
+import {
+  getClearIconSvgStyle,
+  getInputBorderStyles,
+} from "~lib/components/shared/Base/styled-components"
 import { VirtualDropdown } from "~lib/components/shared/Dropdown"
 import {
   WidgetLabel,
@@ -360,15 +363,8 @@ const Multiselect: FC<Props> = props => {
                 overrides: {
                   Svg: {
                     style: {
-                      color: theme.colors.grayTextColor,
-                      // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
-                      padding: theme.spacing.threeXS,
-                      height: theme.sizes.clearIconSize,
-                      width: theme.sizes.clearIconSize,
+                      ...getClearIconSvgStyle(theme),
                       cursor: "pointer",
-                      ":hover": {
-                        fill: theme.colors.bodyText,
-                      },
                     },
                   },
                 },
