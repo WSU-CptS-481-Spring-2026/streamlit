@@ -386,47 +386,59 @@ def _marshall_chart_data(
     """Adds the data to the proto and removes it from the spec dict.
     These operations will happen in-place.
     """
-
-    # Pull data out of spec dict when it's in a 'datasets' key:
-    #   datasets: {foo: df1_bytes, bar: df2_bytes}, ...}
-    if "datasets" in spec:
-        for dataset_name, dataset_data in spec["datasets"].items():
-            dataset = proto.datasets.add()
-            dataset.name = str(dataset_name)
-            dataset.has_name = True
-            # The ID transformer (_to_arrow_dataset function registered before conversion to dict)
-            # already serializes the data into Arrow IPC format (bytes) when the Altair object
-            # gets converted into the vega-lite spec dict.
-            # If its already in bytes, we don't need to serialize it here again.
-            # We just need to pass the data information into the correct proto fields.
-
-            # TODO(lukasmasuch): Are there any other cases where we need to serialize the data
-            # or can we remove the convert_anything_to_arrow_bytes here?
-            dataset.data.data = (
-                dataset_data
-                if isinstance(dataset_data, bytes)
-                else dataframe_util.convert_anything_to_arrow_bytes(dataset_data)
-            )
-        del spec["datasets"]
-
-    # Pull data out of spec dict when it's in a top-level 'data' key:
-    # > {data: df}
-    # > {data: {values: df, ...}}
-    # > {data: {url: 'url'}}
-    # > {data: {name: 'foo'}}
-    if "data" in spec:
-        data_spec = spec["data"]
-
-        if isinstance(data_spec, dict):
-            if "values" in data_spec:
-                data = data_spec["values"]
-                del spec["data"]
-        else:
-            data = data_spec
-            del spec["data"]
+    _marshall_chart_datasets(proto, spec)
+    data = _extract_data_from_spec(spec, data)
 
     if data is not None:
         proto.data.data = dataframe_util.convert_anything_to_arrow_bytes(data)
+
+
+def _marshall_chart_datasets(
+    proto: ArrowVegaLiteChartProto,
+    spec: VegaLiteSpec,
+) -> None:
+    """Marshall named dataset values from the Vega-Lite spec into the proto."""
+
+    if "datasets" not in spec:
+        return
+
+    for dataset_name, dataset_data in spec["datasets"].items():
+        dataset = proto.datasets.add()
+        dataset.name = str(dataset_name)
+        dataset.has_name = True
+        # The ID transformer (_to_arrow_dataset function registered before conversion
+        # to dict) already serializes the data into Arrow IPC format (bytes) when the
+        # Altair object gets converted into the Vega-Lite spec dict.
+        dataset.data.data = (
+            dataset_data
+            if isinstance(dataset_data, bytes)
+            else dataframe_util.convert_anything_to_arrow_bytes(dataset_data)
+        )
+    del spec["datasets"]
+
+
+def _extract_data_from_spec(
+    spec: VegaLiteSpec,
+    current_data: Data = None,
+) -> Data:
+    """Extract the top-level data entry from the Vega-Lite spec, if present."""
+
+    if "data" not in spec:
+        return current_data
+
+    data_spec = spec["data"]
+
+    if isinstance(data_spec, dict) and "values" in data_spec:
+        data = data_spec["values"]
+        del spec["data"]
+        return data
+
+    if not isinstance(data_spec, dict):
+        data = data_spec
+        del spec["data"]
+        return data
+
+    return current_data
 
 
 def _convert_altair_to_vega_lite_spec(
