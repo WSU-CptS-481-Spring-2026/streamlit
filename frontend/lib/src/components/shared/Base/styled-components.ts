@@ -49,3 +49,42 @@ export const getBorderColor = (
   }
   return borderColor
 }
+
+/**
+ * Helper function to get the long-hand border styles, which is required for baseweb components as short-hand border styles cause bugs and warnings
+ * @param borderWidth Border width to be applied to all sides of the input widget
+ * @param borderColor Border color to be applied to all sides of the input widget
+ * @returns CSSProperties object containing the long-hand border styles to be applied to the input widget
+ * @see getInputBorderStyles
+ */
+export const getLonghandBorderStyles = (
+  borderWidth: CSSProperties["borderWidth"],
+  borderColor: CSSProperties["borderColor"]
+): CSSProperties => ({
+  borderLeftWidth: borderWidth,
+  borderRightWidth: borderWidth,
+  borderTopWidth: borderWidth,
+  borderBottomWidth: borderWidth,
+  borderTopColor: borderColor,
+  borderRightColor: borderColor,
+  borderBottomColor: borderColor,
+  borderLeftColor: borderColor,
+})
+
+/**
+ * Helper function to get the border styles for baseweb input widgets
+ * @param borderWidth Border width to be applied to all sides of the input widget
+ * @param colors Emotion theme colors, used to determine the appropriate border color based on focus state
+ * @param isFocused Whether the input widget is currently focused, used to determine the appropriate border color
+ * @returns CSSProperties object containing the long-hand border styles to be applied to the input widget
+ */
+export const getInputBorderStyles = (
+  borderWidth: CSSProperties["borderWidth"],
+  colors: EmotionThemeColors,
+  isFocused: boolean
+): CSSProperties => {
+  const borderColor = getBorderColor(colors, isFocused)
+
+  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
+  return getLonghandBorderStyles(borderWidth, borderColor)
+}

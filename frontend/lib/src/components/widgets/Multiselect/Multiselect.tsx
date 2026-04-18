@@ -38,7 +38,7 @@ import { without } from "lodash-es"
 import { MultiSelect as MultiSelectProto } from "@streamlit/protobuf"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
-import { getBorderColor } from "~lib/components/shared/Base/styled-components"
+import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
 import { VirtualDropdown } from "~lib/components/shared/Dropdown"
 import {
   WidgetLabel,
@@ -326,20 +326,14 @@ const Multiselect: FC<Props> = props => {
             },
             ControlContainer: {
               style: ({ $isFocused }: { $isFocused: boolean }) => {
-                const borderColor = getBorderColor(theme.colors, $isFocused)
                 return {
                   maxHeight: maxHeight,
                   minHeight: theme.sizes.minElementHeight,
-                  // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                  borderLeftWidth: theme.sizes.borderWidth,
-                  borderRightWidth: theme.sizes.borderWidth,
-                  borderTopWidth: theme.sizes.borderWidth,
-                  borderBottomWidth: theme.sizes.borderWidth,
-
-                  borderTopColor: borderColor,
-                  borderRightColor: borderColor,
-                  borderBottomColor: borderColor,
-                  borderLeftColor: borderColor,
+                  ...getInputBorderStyles(
+                    theme.sizes.borderWidth,
+                    theme.colors,
+                    $isFocused
+                  ),
                 }
               },
             },

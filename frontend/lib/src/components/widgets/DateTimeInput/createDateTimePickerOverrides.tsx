@@ -19,7 +19,7 @@ import type { DatepickerProps } from "baseui/datepicker"
 import { ChevronDown } from "baseui/icon"
 import { PLACEMENT } from "baseui/popover"
 
-import { getBorderColor } from "~lib/components/shared/Base/styled-components"
+import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
 import Icon from "~lib/components/shared/Icon"
 import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import Tooltip, { Placement } from "~lib/components/shared/Tooltip"
@@ -160,17 +160,13 @@ export const createDateTimePickerOverrides = ({
         },
         Root: {
           style: ({ $isFocused }: { $isFocused: boolean }) => {
-            const borderColor = getBorderColor(theme.colors, $isFocused)
             return {
-              borderLeftWidth: theme.sizes.borderWidth,
-              borderRightWidth: theme.sizes.borderWidth,
-              borderTopWidth: theme.sizes.borderWidth,
-              borderBottomWidth: theme.sizes.borderWidth,
+              ...getInputBorderStyles(
+                theme.sizes.borderWidth,
+                theme.colors,
+                $isFocused
+              ),
               paddingRight: theme.spacing.twoXS,
-              borderTopColor: borderColor,
-              borderRightColor: borderColor,
-              borderBottomColor: borderColor,
-              borderLeftColor: borderColor,
               ...(error && {
                 backgroundColor: theme.colors.redBackgroundColor,
               }),
@@ -254,17 +250,13 @@ export const createDateTimePickerOverrides = ({
             overrides: {
               ControlContainer: {
                 style: ({ $isFocused }: { $isFocused: boolean }) => {
-                  const borderColor = getBorderColor(theme.colors, $isFocused)
                   return {
                     height: theme.sizes.minElementHeight,
-                    borderLeftWidth: theme.sizes.borderWidth,
-                    borderRightWidth: theme.sizes.borderWidth,
-                    borderTopWidth: theme.sizes.borderWidth,
-                    borderBottomWidth: theme.sizes.borderWidth,
-                    borderTopColor: borderColor,
-                    borderRightColor: borderColor,
-                    borderBottomColor: borderColor,
-                    borderLeftColor: borderColor,
+                    ...getInputBorderStyles(
+                      theme.sizes.borderWidth,
+                      theme.colors,
+                      $isFocused
+                    ),
                   }
                 },
               },
