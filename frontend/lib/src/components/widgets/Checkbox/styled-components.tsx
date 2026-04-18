@@ -16,6 +16,7 @@
 
 import styled from "@emotion/styled"
 
+import { getLabelVisibilityStyles } from "~lib/components/widgets/BaseWidget/labelVisibilityStyles"
 import { LabelVisibilityOptions } from "~lib/util/utils"
 
 export const StyledCheckbox = styled.div(({ theme }) => ({
@@ -30,9 +31,10 @@ export interface StyledContentProps {
 
 export const StyledContent = styled.div<StyledContentProps>(
   ({ visibility }) => ({
-    display: visibility === LabelVisibilityOptions.Collapsed ? "none" : "flex",
-    visibility:
-      visibility === LabelVisibilityOptions.Hidden ? "hidden" : "visible",
+    ...getLabelVisibilityStyles({
+      visibility,
+      visibleDisplay: "flex",
+    }),
     verticalAlign: "middle",
     flexDirection: "row",
     alignItems: "center",

@@ -18,6 +18,8 @@ import styled from "@emotion/styled"
 
 import { LabelVisibilityOptions } from "~lib/util/utils"
 
+import { getLabelVisibilityStyles } from "./labelVisibilityStyles"
+
 export interface StyledWidgetProps {
   disabled?: boolean | null
   labelVisibility?: LabelVisibilityOptions
@@ -27,10 +29,10 @@ export const StyledWidgetLabel = styled.label<StyledWidgetProps>(
   ({ disabled, labelVisibility, theme }) => ({
     fontSize: theme.fontSizes.sm,
     color: disabled ? theme.colors.fadedText40 : theme.colors.bodyText,
-    display:
-      labelVisibility === LabelVisibilityOptions.Collapsed ? "none" : "flex",
-    visibility:
-      labelVisibility === LabelVisibilityOptions.Hidden ? "hidden" : "visible",
+    ...getLabelVisibilityStyles({
+      visibility: labelVisibility,
+      visibleDisplay: "flex",
+    }),
     marginBottom: theme.spacing.twoXS,
     height: "auto",
     minHeight: theme.fontSizes.xl,
