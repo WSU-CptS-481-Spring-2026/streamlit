@@ -234,6 +234,12 @@ class StreamlitPage:
 
         ctx = get_script_run_ctx()
         if not ctx:
+            # Setting other default values for the page instead of partial initialization with _default.
+            self._page = ""
+            self._title = ""
+            self._icon = ""
+            self._url_path = ""
+            self._can_be_called = False
             return
 
         main_path = ctx.pages_manager.main_script_parent
