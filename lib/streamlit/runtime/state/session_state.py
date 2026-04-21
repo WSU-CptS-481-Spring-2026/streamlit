@@ -486,66 +486,50 @@ class SessionState:
             raise KeyError(_missing_key_error_message(key))
 
     def _getitem(self, widget_id: str | None, user_key: str | None) -> Any:
-        """Get the value of an entry in Session State.
+        """Get the value of an entry in Session State, using either the
+        user-provided key or a widget id as appropriate for the internal dict
+        being accessed.
 
-        Uses either user-provided key or widget_id as appropriate for internal dict.
         At least one of the arguments must have a value.
-
-        State lookup priority:
-        1. New session state (user-set values in current run)
-        2. New widget state (frontend updates in current run)
-        3. Old state by widget_id (previous runs, widget key)
-        4. Old state by user_key (previous runs, user key)
         """
         if user_key is None and widget_id is None:
             raise ValueError(
                 "user_key and widget_id cannot both be None. This should never happen."
             )
 
-        # Check new session state (user set values)
-        found, value = self._try_get_from_dict(self._new_session_state, user_key)
-        if found:
-            return value
+        if user_key is not None:
+            try:
+                return self._new_session_state[user_key]
+            except KeyError:
+                pass
 
-        # Check new widget state (frontend updates)
-        found, value = self._try_get_from_dict(self._new_widget_state, widget_id)
-        if found:
-            return value
+        if widget_id is not None:
+            try:
+                return self._new_widget_state[widget_id]
+            except KeyError:
+                pass
 
-        # Check old state with widget_id first
-        found, value = self._try_get_from_dict(self._old_state, widget_id)
-        if found:
-            return value
+        # Typically, there won't be both a widget id and an associated state key in
+        # old state at the same time, so the order we check is arbitrary.
+        # The exception is if session state is set and then a later run has
+        # a widget created, so the widget id entry should be newer.
+        # The opposite case shouldn't happen, because setting the value of a widget
+        # through session state will result in the next widget state reflecting that
+        # value.
+        if widget_id is not None:
+            try:
+                return self._old_state[widget_id]
+            except KeyError:
+                pass
 
-        # Check old state with user_key
-        found, value = self._try_get_from_dict(self._old_state, user_key)
-        if found:
-            return value
+        if user_key is not None:
+            try:
+                return self._old_state[user_key]
+            except KeyError:
+                pass
 
+        # We'll never get here
         raise KeyError
-
-    def _try_get_from_dict(self, state_dict: Any, key: str | None) -> tuple[bool, Any]:
-        """Safely retrieve a key from a mapping-like object.
-
-        Parameters
-        ----------
-        state_dict : Any
-            The dictionary or mapping to query.
-        key : str | None
-            The key to look up. If None, returns None.
-
-        Returns
-        -------
-        tuple[bool, Any]
-            A tuple of (found, value) where found indicates whether the
-            key existed. This preserves valid None values in state.
-        """
-        if key is None:
-            return False, None
-        try:
-            return True, state_dict[key]
-        except KeyError:
-            return False, None
 
     def __setitem__(self, user_key: str, value: Any) -> None:
         """Set the value of the session_state entry with the given user_key.
@@ -671,59 +655,26 @@ class SessionState:
         cb_kwargs : dict[str, Any]
             Keyword arguments passed to the callback.
         """
+        from streamlit.runtime.scriptrunner import RerunException
 
         ctx = get_script_run_ctx()
-        is_fragment_context = ctx and cb_metadata.fragment_id is not None
-
-        if is_fragment_context:
-            self._execute_callback_in_fragment_context(
-                callback_fn, ctx, cb_args, cb_kwargs
-            )
+        if ctx and cb_metadata.fragment_id is not None:
+            ctx.in_fragment_callback = True
+            try:
+                callback_fn(*cb_args, **cb_kwargs)
+            except RerunException:
+                get_dg_singleton_instance().main_dg.warning(
+                    "Calling st.rerun() within a callback is a no-op."
+                )
+            finally:
+                ctx.in_fragment_callback = False
         else:
-            self._execute_callback_in_regular_context(callback_fn, cb_args, cb_kwargs)
-
-    def _execute_callback_in_fragment_context(
-        self,
-        callback_fn: WidgetCallback,
-        ctx: Any,
-        cb_args: WidgetArgs,
-        cb_kwargs: dict[str, Any],
-    ) -> None:
-        """Execute callback within fragment context, managing fragment callback state.
-
-        Temporarily sets in_fragment_callback flag to indicate callback execution
-        within a fragment scope.
-        """
-        from streamlit.runtime.scriptrunner import RerunException
-
-        ctx.in_fragment_callback = True
-        try:
-            callback_fn(*cb_args, **cb_kwargs)
-        except RerunException:
-            get_dg_singleton_instance().main_dg.warning(
-                "Calling st.rerun() within a callback is a no-op."
-            )
-        finally:
-            ctx.in_fragment_callback = False
-
-    def _execute_callback_in_regular_context(
-        self,
-        callback_fn: WidgetCallback,
-        cb_args: WidgetArgs,
-        cb_kwargs: dict[str, Any],
-    ) -> None:
-        """Execute callback in regular (non-fragment) context.
-
-        Handles callback execution outside of fragment scope.
-        """
-        from streamlit.runtime.scriptrunner import RerunException
-
-        try:
-            callback_fn(*cb_args, **cb_kwargs)
-        except RerunException:
-            get_dg_singleton_instance().main_dg.warning(
-                "Calling st.rerun() within a callback is a no-op."
-            )
+            try:
+                callback_fn(*cb_args, **cb_kwargs)
+            except RerunException:
+                get_dg_singleton_instance().main_dg.warning(
+                    "Calling st.rerun() within a callback is a no-op."
+                )
 
     def _dispatch_trigger_callbacks(
         self,
@@ -815,54 +766,32 @@ class SessionState:
         if not metadata.callbacks:
             return
 
-        new_val = self._get_new_widget_value_safe(wid)
+        try:
+            new_val = self._new_widget_state.get(wid)
+        except KeyError:
+            new_val = None
         old_val = self._old_state.get(wid)
 
-        new_map = self._unwrap_json_value(new_val)
-        old_map = self._unwrap_json_value(old_val)
+        def unwrap(obj: object) -> dict[str, object]:
+            if not isinstance(obj, dict):
+                return {}
+
+            obj = cast("dict[str, Any]", obj)
+            if set(obj.keys()) == {"value"}:
+                value = obj.get("value")
+                if isinstance(value, dict):
+                    return dict(value)  # shallow copy
+
+            return dict(obj)
+
+        new_map = unwrap(new_val)
+        old_map = unwrap(old_val)
 
         if new_map or old_map:
-            self._invoke_callbacks_for_changed_keys(
-                new_map, old_map, metadata, args, kwargs
-            )
+            all_keys = new_map.keys() | old_map.keys()
+            changed_keys = {k for k in all_keys if old_map.get(k) != new_map.get(k)}
 
-    def _get_new_widget_value_safe(self, wid: str) -> Any:
-        """Safely retrieve new widget value, returning None if not found."""
-        try:
-            return self._new_widget_state.get(wid)
-        except KeyError:
-            return None
-
-    def _unwrap_json_value(self, obj: object) -> dict[str, object]:
-        """Extract JSON object from potentially wrapped widget value.
-
-        Handles both direct dict values and dict values wrapped in {"value": ...}.
-        """
-        if not isinstance(obj, dict):
-            return {}
-
-        obj = cast("dict[str, Any]", obj)
-        if set(obj.keys()) == {"value"}:
-            value = obj.get("value")
-            if isinstance(value, dict):
-                return dict(value)  # shallow copy
-
-        return dict(obj)
-
-    def _invoke_callbacks_for_changed_keys(
-        self,
-        new_map: dict[str, object],
-        old_map: dict[str, object],
-        metadata: WidgetMetadata[Any],
-        args: WidgetArgs,
-        kwargs: dict[str, Any],
-    ) -> None:
-        """Invoke callbacks for all keys that changed between maps."""
-        all_keys = new_map.keys() | old_map.keys()
-        changed_keys = {k for k in all_keys if old_map.get(k) != new_map.get(k)}
-
-        for key in changed_keys:
-            if metadata.callbacks:
+            for key in changed_keys:
                 cb = metadata.callbacks.get(key)
                 if cb is not None:
                     self._execute_widget_callback(cb, metadata, args, kwargs)
@@ -891,16 +820,7 @@ class SessionState:
         self._remove_stale_widgets(widget_ids_this_run)
 
     def _reset_triggers(self) -> None:
-        """Reset all trigger values to inactive state.
-
-        Trigger values are single fire events that should be reset after each
-        script run. Boolean triggers reset to False, string/JSON triggers to None.
-        """
-        self._reset_triggers_in_widget_state()
-        self._reset_triggers_in_old_state()
-
-    def _reset_triggers_in_widget_state(self) -> None:
-        """Reset trigger values in active widget state."""
+        """Set all trigger values in our state dictionary to False."""
         for state_id in self._new_widget_state:
             metadata = self._new_widget_state.widget_metadata.get(state_id)
             if metadata is not None:
@@ -913,8 +833,6 @@ class SessionState:
                 }:
                     self._new_widget_state[state_id] = Value(None)
 
-    def _reset_triggers_in_old_state(self) -> None:
-        """Reset trigger values in old state for consistency."""
         for state_id in self._old_state:
             metadata = self._new_widget_state.widget_metadata.get(state_id)
             if metadata is not None:
@@ -1246,31 +1164,12 @@ def _is_stale_widget(
     active_widget_ids: set[str],
     fragment_ids_this_run: list[str] | None,
 ) -> bool:
-    """Determine if a widget is stale (no longer active in current run).
-
-    A widget is stale if metadata is missing or if it is not active for the
-    current run context.
-
-    During fragment runs, widgets that belong to *other* fragments are preserved
-    so they can still be used by future fragment or full-app reruns.
-
-    Parameters
-    ----------
-    metadata : WidgetMetadata[Any] | None
-        The widget's metadata (None indicates stale).
-    active_widget_ids : set[str]
-        Widget IDs active this run.
-    fragment_ids_this_run : list[str] | None
-        Fragment IDs running this run, or None if no fragments.
-
-    Returns
-    -------
-    bool
-        True if widget should be removed, False if should be kept.
-    """
     if not metadata:
         return True
 
+    # If we're running 1 or more fragments, but this widget is unrelated to any of the
+    # fragments that we're running, then it should not be marked as stale as its value
+    # may still be needed for a future fragment run or full script run.
     return not (
         metadata.id in active_widget_ids
         or (fragment_ids_this_run and metadata.fragment_id not in fragment_ids_this_run)

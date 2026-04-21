@@ -2496,6 +2496,38 @@ def _is_valid_theme_section(section_path: str) -> bool:
     return False
 
 
+def _process_config_toml_section(
+    section_path: str,
+    section_data: dict[str, Any],
+    where_defined: str,
+) -> None:
+    """Recursively process nested TOML config sections.
+
+    Parameters
+    ----------
+    section_path : str
+        The dot-separated path to the current section (e.g. "server" or "theme").
+    section_data : dict[str, Any]
+        The dictionary containing configuration values for this section.
+    where_defined : str
+        Tells the config system where this was set.
+    """
+
+    for name, value in section_data.items():
+        option_name = f"{section_path}.{name}"
+
+        if section_path.startswith("theme") and name in {
+            CustomThemeCategories.SIDEBAR.value,
+            CustomThemeCategories.LIGHT.value,
+            CustomThemeCategories.DARK.value,
+        }:
+            if not _is_valid_theme_section(option_name):
+                raise StreamlitInvalidThemeSectionError(option_name=option_name)
+            _process_config_toml_section(option_name, value, where_defined)
+        else:
+            _set_option(option_name, _maybe_read_env_variable(value), where_defined)
+
+
 def _update_config_with_toml(raw_toml: str, where_defined: str) -> None:
     """Update the config system by parsing this string.
 
@@ -2522,60 +2554,8 @@ def _update_config_with_toml(raw_toml: str, where_defined: str) -> None:
         )
         return
 
-    def process_section(section_path: str, section_data: dict[str, Any]) -> None:
-        """Recursively process nested sections of the config file.
-
-        Parameters
-        ----------
-        section_path : str
-            The dot-separated path to the current section (e.g., "server" or "theme")
-        section_data : dict[str, Any]
-            The dictionary containing configuration values for this section
-
-        Notes
-        -----
-        TOML's hierarchical structure gets parsed into nested dictionaries.
-        For example:
-            [main]
-            option = "value"
-
-            [main.subsection]
-            another = "value2"
-
-        Will be loaded by the TOML parser as:
-            {
-                "main": {
-                    "option": "value",
-                    "subsection": {
-                        "another": "value2"
-                    }
-                }
-            }
-
-        This function traverses these nested dictionaries and converts them
-        to dot-notation config options.
-        """
-
-        for name, value in section_data.items():
-            option_name = f"{section_path}.{name}"
-            # Only check for nested sections when we're already in a theme section
-            if section_path.startswith("theme") and name in {
-                CustomThemeCategories.SIDEBAR.value,
-                CustomThemeCategories.LIGHT.value,
-                CustomThemeCategories.DARK.value,
-            }:
-                # Validate the theme section before processing
-                if not _is_valid_theme_section(option_name):
-                    raise StreamlitInvalidThemeSectionError(
-                        option_name=option_name,
-                    )
-                process_section(option_name, value)
-            else:
-                # It's a regular config option, set it
-                _set_option(option_name, _maybe_read_env_variable(value), where_defined)
-
     for section, options in parsed_config_file.items():
-        process_section(section, options)
+        _process_config_toml_section(section, options, where_defined)
 
 
 def _maybe_read_env_variable(value: Any) -> Any:
@@ -2800,37 +2780,76 @@ def _parse_trusted_user_headers() -> None:
     """
     options = get_config_options()
     trusted_user_headers = options["server.trustedUserHeaders"]
-    if isinstance(trusted_user_headers.value, str):
-        try:
-            parsed_value = json.loads(trusted_user_headers.value)
-            # Validate that this is an object with string values.
-            if not isinstance(parsed_value, dict):
-                # Config validation is using RuntimeError deliberately; ignore warning
-                # about making this TypeError.
-                # ruff: noqa: TRY004
-                raise RuntimeError("server.trustedUserHeaders JSON must be an object")
-            for json_key, json_value in parsed_value.items():
-                if not isinstance(json_value, str):
-                    raise RuntimeError(
-                        "server.trustedUserHeaders JSON must only have string values. "
-                        f'got bad value for key "{json_key}": {json_value}'
-                    )
-            set_option(
-                "server.trustedUserHeaders",
-                parsed_value,
-                where_defined=trusted_user_headers.where_defined,
-            )
-        except json.JSONDecodeError as jde:
-            raise RuntimeError(
-                f"bad JSON value for server.trustedUserHeaders: {jde.msg}"
-            )
 
-    # Fetch the latest value, since we might've updated it from JSON.
+    if isinstance(trusted_user_headers.value, str):
+        parsed_headers = _parse_trusted_user_headers_value(trusted_user_headers.value)
+        set_option(
+            "server.trustedUserHeaders",
+            parsed_headers,
+            where_defined=trusted_user_headers.where_defined,
+        )
+
     final_config_value = options["server.trustedUserHeaders"].value
-    # Ensure no user keys are duplicated.
+    _validate_trusted_user_headers_dict(final_config_value)
+
+
+def _parse_trusted_user_headers_value(value: str) -> dict[str, str]:
+    """Parse JSON string values for server.trustedUserHeaders.
+
+    Parameters
+    ----------
+    value : str
+        The raw JSON string from the config system.
+
+    Returns
+    -------
+    dict[str, str]
+        A normalized mapping of trusted user headers.
+    """
+    try:
+        parsed_value = json.loads(value)
+    except json.JSONDecodeError as jde:
+        raise RuntimeError(f"bad JSON value for server.trustedUserHeaders: {jde.msg}")
+
+    return _validate_trusted_user_headers_dict(parsed_value)
+
+
+def _validate_trusted_user_headers_dict(
+    value: Any,
+) -> dict[str, str]:
+    """Validate the trustedUserHeaders mapping and normalize its values.
+
+    Parameters
+    ----------
+    value : any
+        The parsed trustedUserHeaders value.
+
+    Returns
+    -------
+    dict[str, str]
+        The validated trusted user headers map.
+    """
+    if not isinstance(value, dict):
+        # Config validation is using RuntimeError deliberately; ignore warning
+        # about making this TypeError.
+        # ruff: noqa: TRY004
+        raise RuntimeError("server.trustedUserHeaders JSON must be an object")
+
+    result: dict[str, str] = {}
+    for json_key, json_value in value.items():
+        if not isinstance(json_value, str):
+            # Config validation is using RuntimeError deliberately; ignore warning
+            # about making this TypeError.
+            # ruff: noqa: TRY004
+            raise RuntimeError(
+                "server.trustedUserHeaders JSON must only have string values. "
+                f'got bad value for key "{json_key}": {json_value}'
+            )
+        result[json_key] = json_value
+
     values = set()
-    bad_keys = []
-    for user_key in final_config_value.values():
+    bad_keys: list[str] = []
+    for user_key in result.values():
         if user_key in values:
             bad_keys.append(user_key)
         values.add(user_key)
@@ -2839,6 +2858,8 @@ def _parse_trusted_user_headers() -> None:
         raise RuntimeError(
             f"server.trustedUserHeaders had multiple mappings for user key(s) {bad_keys}"
         )
+
+    return result
 
 
 def on_config_parsed(
