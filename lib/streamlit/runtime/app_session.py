@@ -77,6 +77,144 @@ def _generate_scriptrun_id() -> str:
     return str(uuid.uuid4())
 
 
+def _create_session_status_changed_message(
+    run_on_save: bool, is_script_running: bool
+) -> ForwardMsg:
+    """Create and return a session_status_changed ForwardMsg."""
+    msg = ForwardMsg()
+    msg.session_status_changed.run_on_save = run_on_save
+    msg.session_status_changed.script_is_running = is_script_running
+    return msg
+
+
+def _create_file_change_message() -> ForwardMsg:
+    """Create and return a 'script_changed_on_disk' ForwardMsg."""
+    msg = ForwardMsg()
+    msg.session_event.script_changed_on_disk = True
+    return msg
+
+
+def _create_script_finished_message(
+    status: ForwardMsg.ScriptFinishedStatus.ValueType,
+) -> ForwardMsg:
+    """Create and return a script_finished ForwardMsg."""
+    msg = ForwardMsg()
+    msg.script_finished = status
+    return msg
+
+
+def _create_exception_message(e: BaseException) -> ForwardMsg:
+    """Create and return an Exception ForwardMsg."""
+    msg = ForwardMsg()
+    exception_utils.marshall(msg.delta.new_element.exception, e)
+    return msg
+
+
+def _populate_app_pages_message(
+    msg: NewSession, pages: dict[PageHash, PageInfo]
+) -> None:
+    """Populate the app_pages list in a new_session message."""
+    for page_script_hash, page_info in pages.items():
+        page_proto = msg.app_pages.add()
+
+        page_proto.page_script_hash = page_script_hash
+        page_proto.page_name = page_info["page_name"].replace("_", " ")
+        page_proto.url_pathname = page_info["page_name"]
+        page_proto.icon = page_info["icon"]
+
+
+def _create_new_session_message(
+    *,
+    script_name: str,
+    main_script_path: str,
+    main_script_hash: str,
+    page_script_hash: str,
+    pages: dict[PageHash, PageInfo],
+    run_on_save: bool,
+    is_script_running: bool,
+    is_hello: bool,
+    session_id: str,
+    fragment_ids_this_run: list[str] | None = None,
+) -> ForwardMsg:
+    """Create and return a new_session ForwardMsg."""
+    msg = ForwardMsg()
+
+    msg.new_session.script_run_id = _generate_scriptrun_id()
+    msg.new_session.name = script_name
+    msg.new_session.main_script_path = main_script_path
+    msg.new_session.main_script_hash = main_script_hash
+    msg.new_session.page_script_hash = page_script_hash
+
+    if fragment_ids_this_run:
+        msg.new_session.fragment_ids_this_run.extend(fragment_ids_this_run)
+
+    _populate_app_pages_message(msg.new_session, pages)
+    _populate_config_msg(msg.new_session.config)
+
+    # Handles theme sections
+    # [theme] configs
+    _populate_theme_msg(msg.new_session.custom_theme)
+    # [theme.light] configs
+    _populate_theme_msg(
+        msg.new_session.custom_theme.light,
+        f"theme.{config.CustomThemeCategories.LIGHT.value}",
+    )
+    # [theme.dark] configs
+    _populate_theme_msg(
+        msg.new_session.custom_theme.dark,
+        f"theme.{config.CustomThemeCategories.DARK.value}",
+    )
+    # [theme.sidebar] configs
+    _populate_theme_msg(
+        msg.new_session.custom_theme.sidebar,
+        f"theme.{config.CustomThemeCategories.SIDEBAR.value}",
+    )
+    # [theme.light.sidebar] configs
+    _populate_theme_msg(
+        msg.new_session.custom_theme.light.sidebar,
+        f"theme.{config.CustomThemeCategories.LIGHT_SIDEBAR.value}",
+    )
+    # [theme.dark.sidebar] configs
+    _populate_theme_msg(
+        msg.new_session.custom_theme.dark.sidebar,
+        f"theme.{config.CustomThemeCategories.DARK_SIDEBAR.value}",
+    )
+
+    # Immutable session data. We send this every time a new session is
+    # started, to avoid having to track whether the client has already
+    # received it. It does not change from run to run; it's up to the
+    # to perform one-time initialization only once.
+    imsg = msg.new_session.initialize
+
+    _populate_user_info_msg(imsg.user_info)
+
+    imsg.environment_info.streamlit_version = STREAMLIT_VERSION_STRING
+    imsg.environment_info.python_version = ".".join(map(str, sys.version_info))
+    imsg.environment_info.server_os = env_util.SYSTEM
+    imsg.environment_info.has_display = (
+        "DISPLAY" in os.environ or "WAYLAND_DISPLAY" in os.environ
+    )
+
+    imsg.session_status.run_on_save = run_on_save
+    imsg.session_status.script_is_running = is_script_running
+    imsg.is_hello = is_hello
+    imsg.session_id = session_id
+
+    return msg
+
+
+_BACKMSG_HANDLER_NAMES: Final[dict[str, str]] = {
+    "rerun_script": "_handle_backmsg_rerun_script",
+    "load_git_info": "_handle_backmsg_load_git_info",
+    "clear_cache": "_handle_backmsg_clear_cache",
+    "app_heartbeat": "_handle_backmsg_app_heartbeat",
+    "set_run_on_save": "_handle_backmsg_set_run_on_save",
+    "stop_script": "_handle_backmsg_stop_script",
+    "file_urls_request": "_handle_backmsg_file_urls_request",
+    "deferred_file_request": "_handle_backmsg_deferred_file_request",
+}
+
+
 class AppSession:
     """
     Contains session data for a single "user" of an active app
@@ -302,38 +440,54 @@ class AppSession:
         """Process a BackMsg."""
         try:
             msg_type = msg.WhichOneof("type")
-            if msg_type == "rerun_script":
-                if msg.debug_last_backmsg_id:
-                    self._debug_last_backmsg_id = msg.debug_last_backmsg_id
-
-                self._handle_rerun_script_request(msg.rerun_script)
-            elif msg_type == "load_git_info":
-                self._handle_git_information_request()
-            elif msg_type == "clear_cache":
-                self._handle_clear_cache_request()
-            elif msg_type == "app_heartbeat":
-                self._handle_app_heartbeat_request()
-            elif msg_type == "set_run_on_save":
-                self._handle_set_run_on_save_request(msg.set_run_on_save)
-            elif msg_type == "stop_script":
-                self._handle_stop_script_request()
-            elif msg_type == "file_urls_request":
-                self._handle_file_urls_request(msg.file_urls_request)
-            elif msg_type == "deferred_file_request":
-                # Execute deferred callable in a separate thread to avoid blocking
-                # the main event loop. Use create_task to run the async handler.
-                # Store task reference to prevent garbage collection.
-                task = asyncio.create_task(
-                    self._handle_deferred_file_request(msg.deferred_file_request)
-                )
-                # Add task name for better debugging
-                task.set_name(f"deferred_file_{msg.deferred_file_request.file_id}")
-            else:
+            if msg_type is None:
                 _LOGGER.warning('No handler for "%s"', msg_type)
+                return
+
+            handler_name = _BACKMSG_HANDLER_NAMES.get(msg_type)
+            if handler_name is None:
+                _LOGGER.warning('No handler for "%s"', msg_type)
+                return
+
+            handler: Callable[[BackMsg], None] = getattr(self, handler_name)
+            handler(msg)
 
         except Exception as ex:
             _LOGGER.exception("Error processing back message")
             self.handle_backmsg_exception(ex)
+
+    def _handle_backmsg_rerun_script(self, msg: BackMsg) -> None:
+        if msg.debug_last_backmsg_id:
+            self._debug_last_backmsg_id = msg.debug_last_backmsg_id
+
+        self._handle_rerun_script_request(msg.rerun_script)
+
+    def _handle_backmsg_load_git_info(self, _msg: BackMsg) -> None:
+        self._handle_git_information_request()
+
+    def _handle_backmsg_clear_cache(self, _msg: BackMsg) -> None:
+        self._handle_clear_cache_request()
+
+    def _handle_backmsg_app_heartbeat(self, _msg: BackMsg) -> None:
+        self._handle_app_heartbeat_request()
+
+    def _handle_backmsg_set_run_on_save(self, msg: BackMsg) -> None:
+        self._handle_set_run_on_save_request(msg.set_run_on_save)
+
+    def _handle_backmsg_stop_script(self, _msg: BackMsg) -> None:
+        self._handle_stop_script_request()
+
+    def _handle_backmsg_file_urls_request(self, msg: BackMsg) -> None:
+        self._handle_file_urls_request(msg.file_urls_request)
+
+    def _handle_backmsg_deferred_file_request(self, msg: BackMsg) -> None:
+        # Execute deferred callable in a separate thread to avoid blocking
+        # the main event loop. Use create_task to run the async handler.
+        task = asyncio.create_task(
+            self._handle_deferred_file_request(msg.deferred_file_request)
+        )
+        # Add task name for better debugging and avoid accidental collection.
+        task.set_name(f"deferred_file_{msg.deferred_file_request.file_id}")
 
     def handle_backmsg_exception(self, e: BaseException) -> None:
         """Handle an Exception raised while processing a BackMsg from the browser."""
@@ -727,19 +881,19 @@ class AppSession:
             self._enqueue_forward_msg(self._create_session_status_changed_message())
 
     def _create_session_status_changed_message(self) -> ForwardMsg:
-        """Create and return a session_status_changed ForwardMsg."""
-        msg = ForwardMsg()
-        msg.session_status_changed.run_on_save = self._run_on_save
-        msg.session_status_changed.script_is_running = (
-            self._state == AppSessionState.APP_IS_RUNNING
+        """Create and return a session_status_changed ForwardMsg.
+
+        This wrapper exists for backwards compatibility with tests and callers
+        while construction logic lives in a dedicated helper.
+        """
+        return _create_session_status_changed_message(
+            run_on_save=self._run_on_save,
+            is_script_running=self._state == AppSessionState.APP_IS_RUNNING,
         )
-        return msg
 
     def _create_file_change_message(self) -> ForwardMsg:
         """Create and return a 'script_changed_on_disk' ForwardMsg."""
-        msg = ForwardMsg()
-        msg.session_event.script_changed_on_disk = True
-        return msg
+        return _create_file_change_message()
 
     def _create_new_session_message(
         self,
@@ -747,90 +901,33 @@ class AppSession:
         fragment_ids_this_run: list[str] | None = None,
         pages: dict[PageHash, PageInfo] | None = None,
     ) -> ForwardMsg:
-        """Create and return a new_session ForwardMsg."""
-        msg = ForwardMsg()
+        """Create and return a new_session ForwardMsg.
 
-        msg.new_session.script_run_id = _generate_scriptrun_id()
-        msg.new_session.name = self._script_data.name
-        msg.new_session.main_script_path = self._pages_manager.main_script_path
-        msg.new_session.main_script_hash = self._pages_manager.main_script_hash
-        msg.new_session.page_script_hash = page_script_hash
-
-        if fragment_ids_this_run:
-            msg.new_session.fragment_ids_this_run.extend(fragment_ids_this_run)
-
-        self._populate_app_pages(
-            msg.new_session, pages or self._pages_manager.get_pages()
+        This wrapper exists for backwards compatibility with tests and callers
+        while construction logic lives in a dedicated helper.
+        """
+        return _create_new_session_message(
+            script_name=self._script_data.name,
+            main_script_path=self._pages_manager.main_script_path,
+            main_script_hash=self._pages_manager.main_script_hash,
+            page_script_hash=page_script_hash,
+            pages=pages or self._pages_manager.get_pages(),
+            run_on_save=self._run_on_save,
+            is_script_running=self._state == AppSessionState.APP_IS_RUNNING,
+            is_hello=self._script_data.is_hello,
+            session_id=self.id,
+            fragment_ids_this_run=fragment_ids_this_run,
         )
-        _populate_config_msg(msg.new_session.config)
-
-        # Handles theme sections
-        # [theme] configs
-        _populate_theme_msg(msg.new_session.custom_theme)
-        # [theme.light] configs
-        _populate_theme_msg(
-            msg.new_session.custom_theme.light,
-            f"theme.{config.CustomThemeCategories.LIGHT.value}",
-        )
-        # [theme.dark] configs
-        _populate_theme_msg(
-            msg.new_session.custom_theme.dark,
-            f"theme.{config.CustomThemeCategories.DARK.value}",
-        )
-        # [theme.sidebar] configs
-        _populate_theme_msg(
-            msg.new_session.custom_theme.sidebar,
-            f"theme.{config.CustomThemeCategories.SIDEBAR.value}",
-        )
-        # [theme.light.sidebar] configs
-        _populate_theme_msg(
-            msg.new_session.custom_theme.light.sidebar,
-            f"theme.{config.CustomThemeCategories.LIGHT_SIDEBAR.value}",
-        )
-        # [theme.dark.sidebar] configs
-        _populate_theme_msg(
-            msg.new_session.custom_theme.dark.sidebar,
-            f"theme.{config.CustomThemeCategories.DARK_SIDEBAR.value}",
-        )
-
-        # Immutable session data. We send this every time a new session is
-        # started, to avoid having to track whether the client has already
-        # received it. It does not change from run to run; it's up to the
-        # to perform one-time initialization only once.
-        imsg = msg.new_session.initialize
-
-        _populate_user_info_msg(imsg.user_info)
-
-        imsg.environment_info.streamlit_version = STREAMLIT_VERSION_STRING
-        imsg.environment_info.python_version = ".".join(map(str, sys.version_info))
-        imsg.environment_info.server_os = env_util.SYSTEM
-        imsg.environment_info.has_display = (
-            "DISPLAY" in os.environ or "WAYLAND_DISPLAY" in os.environ
-        )
-
-        imsg.session_status.run_on_save = self._run_on_save
-        imsg.session_status.script_is_running = (
-            self._state == AppSessionState.APP_IS_RUNNING
-        )
-
-        imsg.is_hello = self._script_data.is_hello
-        imsg.session_id = self.id
-
-        return msg
 
     def _create_script_finished_message(
         self, status: ForwardMsg.ScriptFinishedStatus.ValueType
     ) -> ForwardMsg:
         """Create and return a script_finished ForwardMsg."""
-        msg = ForwardMsg()
-        msg.script_finished = status
-        return msg
+        return _create_script_finished_message(status)
 
     def _create_exception_message(self, e: BaseException) -> ForwardMsg:
         """Create and return an Exception ForwardMsg."""
-        msg = ForwardMsg()
-        exception_utils.marshall(msg.delta.new_element.exception, e)
-        return msg
+        return _create_exception_message(e)
 
     def _handle_git_information_request(self) -> None:
         msg = ForwardMsg()
@@ -973,17 +1070,6 @@ class AppSession:
             response.deferred_file_response.error_msg = str(e)
 
         self._enqueue_forward_msg(response)
-
-    def _populate_app_pages(
-        self, msg: NewSession, pages: dict[PageHash, PageInfo]
-    ) -> None:
-        for page_script_hash, page_info in pages.items():
-            page_proto = msg.app_pages.add()
-
-            page_proto.page_script_hash = page_script_hash
-            page_proto.page_name = page_info["page_name"].replace("_", " ")
-            page_proto.url_pathname = page_info["page_name"]
-            page_proto.icon = page_info["icon"]
 
 
 # Config.ToolbarMode.ValueType does not exist at runtime (only in the pyi stubs), so
