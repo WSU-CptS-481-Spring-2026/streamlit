@@ -304,12 +304,9 @@ def navigation(
     return _navigation(pages, position=position, expanded=expanded)
 
 
-def _navigation(
+def _get_nav_sections(
     pages: Sequence[PageType] | Mapping[SectionHeader, Sequence[PageType]],
-    *,
-    position: Literal["sidebar", "hidden", "top"],
-    expanded: bool,
-) -> StreamlitPage:
+) -> dict[str, list[StreamlitPage]] | dict[SectionHeader, list[StreamlitPage]]:
     if isinstance(pages, Sequence):
         converted_pages = [convert_to_streamlit_page(p) for p in pages]
         nav_sections = {"": converted_pages}
@@ -318,15 +315,16 @@ def _navigation(
             section: [convert_to_streamlit_page(p) for p in section_pages]
             for section, section_pages in pages.items()
         }
-    page_list = pages_from_nav_sections(nav_sections)
 
-    if not page_list:
-        raise StreamlitAPIException(
-            "`st.navigation` must be called with at least one `st.Page`."
-        )
+    return nav_sections
 
+
+def _find_default_page(
+    nav_sections: dict[str, list[StreamlitPage]]
+    | dict[SectionHeader, list[StreamlitPage]],
+    page_list: list[StreamlitPage],
+) -> StreamlitPage:
     default_page = None
-    pagehash_to_pageinfo: dict[PageHash, PageInfo] = {}
 
     # Get the default page.
     for section_header in nav_sections:
@@ -343,12 +341,14 @@ def _navigation(
         default_page = page_list[0]
         default_page._default = True
 
-    ctx = get_script_run_ctx()
-    if not ctx:
-        # This should never run in Streamlit, but we want to make sure that
-        # the function always returns a page
-        default_page._can_be_called = True
-        return default_page
+    return default_page
+
+
+def _make_pagehash_to_pageinfo(
+    nav_sections: dict[str, list[StreamlitPage]]
+    | dict[SectionHeader, list[StreamlitPage]],
+) -> dict[PageHash, PageInfo]:
+    pagehash_to_pageinfo: dict[PageHash, PageInfo] = {}
 
     # Build the pagehash-to-pageinfo mapping.
     for section_header in nav_sections:
@@ -373,6 +373,36 @@ def _navigation(
                 "url_pathname": page.url_path,
             }
 
+    return pagehash_to_pageinfo
+
+
+def _find_current_page(
+    page_list: list[StreamlitPage], ctx: ScriptRunContext, default_page: StreamlitPage
+) -> StreamlitPage:
+    found_page = ctx.pages_manager.get_page_script(
+        fallback_page_hash=default_page._script_hash
+    )
+
+    if found_page:
+        found_page_script_hash = found_page["page_script_hash"]
+        matching_pages = [
+            p for p in page_list if p._script_hash == found_page_script_hash
+        ]
+
+        if len(matching_pages) > 0:
+            return matching_pages[0]
+
+    send_page_not_found(ctx)
+    return default_page
+
+
+def _build_navigation_msg(
+    nav_sections: dict[str, list[StreamlitPage]]
+    | dict[SectionHeader, list[StreamlitPage]],
+    position: Literal["sidebar", "hidden", "top"],
+    expanded: bool,
+    page_script_hash: str,
+) -> ForwardMsg:
     msg = ForwardMsg()
     # Handle position logic correctly
     if position == "hidden":
@@ -398,31 +428,47 @@ def _navigation(
             p.section_header = section_header
             p.url_pathname = page.url_path
 
-    # Inform our page manager about the set of pages we have
-    ctx.pages_manager.set_pages(pagehash_to_pageinfo)
-    found_page = ctx.pages_manager.get_page_script(
-        fallback_page_hash=default_page._script_hash
+    msg.navigation.page_script_hash = page_script_hash
+    return msg
+
+
+def _navigation(
+    pages: Sequence[PageType] | Mapping[SectionHeader, Sequence[PageType]],
+    *,
+    position: Literal["sidebar", "hidden", "top"],
+    expanded: bool,
+) -> StreamlitPage:
+    nav_sections = _get_nav_sections(pages)
+    page_list = pages_from_nav_sections(nav_sections)
+    if not page_list:
+        raise StreamlitAPIException(
+            "`st.navigation` must be called with at least one `st.Page`."
+        )
+
+    default_page = _find_default_page(nav_sections, page_list)
+
+    ctx = get_script_run_ctx()
+    if not ctx:
+        # This should never run in Streamlit, but we want to make sure that
+        # the function always returns a page
+        default_page._can_be_called = True
+        return default_page
+
+    pagehash_to_pageinfo: dict[PageHash, PageInfo] = _make_pagehash_to_pageinfo(
+        nav_sections
     )
 
-    page_to_return = None
-    if found_page:
-        found_page_script_hash = found_page["page_script_hash"]
-        matching_pages = [
-            p for p in page_list if p._script_hash == found_page_script_hash
-        ]
-        if len(matching_pages) > 0:
-            page_to_return = matching_pages[0]
-
-    if not page_to_return:
-        send_page_not_found(ctx)
-        page_to_return = default_page
-
+    # Inform our page manager about the set of pages we have
+    ctx.pages_manager.set_pages(pagehash_to_pageinfo)
+    page_to_return = _find_current_page(page_list, ctx, default_page)
+    msg = _build_navigation_msg(
+        nav_sections, position, expanded, page_to_return._script_hash
+    )
     # Ordain the page that can be called
     page_to_return._can_be_called = True
-    msg.navigation.page_script_hash = page_to_return._script_hash
+
     # Set the current page script hash to the page that is going to be executed
     ctx.set_mpa_v2_page(page_to_return._script_hash)
-
     # This will either navigation or yield if the page is not found
     ctx.enqueue(msg)
 
