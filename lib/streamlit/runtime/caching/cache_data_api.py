@@ -400,12 +400,9 @@ class CacheDataAPI:
         decorator_metric_name
             The metric name to record for decorator usage.
         """
-
         # Parameterize the decorator metric name.
         # (Ignore spurious mypy complaints - https://github.com/python/mypy/issues/2427)
-        self._decorator = gather_metrics(  # type: ignore
-            decorator_metric_name, self._decorator
-        )
+        self._decorator = gather_metrics(decorator_metric_name, self._decorator)
 
     # Type-annotate the decorator function.
     # (See https://mypy.readthedocs.io/en/stable/generics.html#decorator-factories)
@@ -418,18 +415,6 @@ class CacheDataAPI:
     @overload
     def __call__(
         self,
-        *,
-        ttl: float | timedelta | str | None = None,
-        max_entries: int | None = None,
-        show_spinner: bool | str = True,
-        show_time: bool = False,
-        persist: CachePersistType | bool = None,
-        hash_funcs: HashFuncsDict | None = None,
-        scope: CacheScope = "global",
-    ) -> Callable[[Callable[P, R]], CachedFunc[P, R]]: ...
-
-    def __call__(
-        self,
         func: Callable[P, R] | None = None,
         *,
         ttl: float | timedelta | str | None = None,
@@ -439,17 +424,41 @@ class CacheDataAPI:
         persist: CachePersistType | bool = None,
         hash_funcs: HashFuncsDict | None = None,
         scope: CacheScope = "global",
-    ) -> CachedFunc[P, R] | Callable[[Callable[P, R]], CachedFunc[P, R]]:
-        return self._decorator(
-            func,  # ty: ignore[invalid-argument-type]
-            ttl=ttl,
-            max_entries=max_entries,
-            persist=persist,
-            show_spinner=show_spinner,
-            show_time=show_time,
-            hash_funcs=hash_funcs,
-            scope=scope,
-        )
+    ) -> CachedFunc[P, R] | Callable[[Callable[P, R]], CachedFunc[P, R]]: ...
+
+    def __call__(self, func=None, **kwargs):
+        if func is None:
+            return self._decorator(**kwargs)
+        return self._decorator(func, **kwargs)
+
+    def _normalize_and_validate_params(
+        self,
+        persist: CachePersistType | bool,
+        scope: CacheScope,
+    ) -> CachePersistType:
+        """Normalize and validate decorator parameters."""
+
+        # Normalize persist
+        if persist is True:
+            persist_string: CachePersistType = "disk"
+        elif persist is False:
+            persist_string = None
+        else:
+            persist_string = persist
+
+        # Validate persist
+        if persist_string not in {None, "disk"}:
+            raise StreamlitAPIException(
+                f"Unsupported persist option '{persist}'. Valid values are 'disk' or None."
+            )
+
+        # Validate scope
+        if scope not in {"global", "session"}:
+            raise StreamlitAPIException(
+                f"Unsupported scope option '{scope}'. Valid values are 'global' or 'session'."
+            )
+
+        return persist_string
 
     def _decorator(
         self,
@@ -459,10 +468,11 @@ class CacheDataAPI:
         max_entries: int | None,
         show_spinner: bool | str,
         show_time: bool = False,
-        persist: CachePersistType | bool,
+        persist: CachePersistType | bool = None,
         hash_funcs: HashFuncsDict | None = None,
         scope: CacheScope = "global",
     ) -> CachedFunc[P, R] | Callable[[Callable[P, R]], CachedFunc[P, R]]:
+        """Refactored decorator with cleaner validation and reduced duplication."""
         """Decorator to cache functions that return data (e.g. dataframe transforms, database queries, ML inference).
 
         Cached objects can be global or session-scoped. Global cached data is
@@ -644,28 +654,9 @@ class CacheDataAPI:
         ...     return dt.astimezone(datetime.timezone.utc)
 
         """
+        persist_string = self._normalize_and_validate_params(persist, scope)
 
-        # Parse our persist value into a string
-        persist_string: CachePersistType
-        if persist is True:
-            persist_string = "disk"
-        elif persist is False:
-            persist_string = None
-        else:
-            persist_string = persist
-
-        if persist_string not in {None, "disk"}:
-            # We'll eventually have more persist options.
-            raise StreamlitAPIException(
-                f"Unsupported persist option '{persist}'. Valid values are 'disk' or None."
-            )
-
-        if scope not in {"global", "session"}:
-            raise StreamlitAPIException(
-                f"Unsupported scope option '{scope}'. Valid values are 'global' or 'session'."
-            )
-
-        def wrapper(f: Callable[P, R]) -> CachedFunc[P, R]:
+        def create_cached_func(f: Callable[P, R]) -> CachedFunc[P, R]:
             return make_cached_func_wrapper(
                 CachedDataFuncInfo(
                     func=f,
@@ -680,24 +671,12 @@ class CacheDataAPI:
             )
 
         if func is None:
-            return wrapper
+            return create_cached_func
 
-        return make_cached_func_wrapper(
-            CachedDataFuncInfo(
-                func=func,
-                persist=persist_string,
-                show_spinner=show_spinner,
-                show_time=show_time,
-                max_entries=max_entries,
-                ttl=ttl,
-                hash_funcs=hash_funcs,
-                scope=scope,
-            )
-        )
+        return create_cached_func(func)
 
     @gather_metrics("clear_data_caches")
     def clear(self) -> None:
-        """Clear all in-memory and on-disk data caches."""
         _data_caches.clear_all()
 
 
