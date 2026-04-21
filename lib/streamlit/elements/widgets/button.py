@@ -22,6 +22,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
+    Any,
     BinaryIO,
     Final,
     Literal,
@@ -93,6 +94,7 @@ IconPosition: TypeAlias = Literal["left", "right"]
 
 _DEFAULT_ICON_POSITION: Final[IconPosition] = "left"
 _VALID_ICON_POSITIONS: Final[tuple[IconPosition, ...]] = ("left", "right")
+_VALID_BUTTON_TYPES: Final[set[str]] = {"primary", "secondary", "tertiary"}
 
 
 def _normalize_icon_position(
@@ -118,6 +120,64 @@ def _icon_position_to_proto(
         if icon_position == "right"
         else ProtoButtonLikeIconPosition.LEFT
     )
+
+
+def _coerce_width_from_use_container_width(
+    width: Width, use_container_width: bool | None
+) -> Width:
+    if use_container_width is not None:
+        return "stretch" if use_container_width else "content"
+    return width
+
+
+def _validate_button_type(
+    button_type: Literal["primary", "secondary", "tertiary"], command: str
+) -> None:
+    if button_type not in _VALID_BUTTON_TYPES:
+        raise StreamlitAPIException(
+            f'The type argument to {command} must be "primary", "secondary", or "tertiary". '
+            f'\nThe argument passed was "{button_type}".'
+        )
+
+
+def _normalize_shortcut(shortcut: str | None) -> str | None:
+    if shortcut is None:
+        return None
+    return normalize_shortcut(shortcut)
+
+
+def _set_buttonlike_proto_fields(
+    proto: ButtonProto | DownloadButtonProto | LinkButtonProto,
+    *,
+    label: str,
+    button_type: Literal["primary", "secondary", "tertiary"],
+    disabled: bool,
+    help: str | None,
+    icon: str | None,
+    icon_position: IconPosition,
+    normalized_shortcut: str | None,
+) -> None:
+    proto.label = label
+    proto.type = button_type
+    proto.disabled = disabled
+
+    if help is not None:
+        proto.help = dedent(help)
+
+    if icon is not None:
+        proto.icon = validate_icon_or_emoji(icon)
+    proto.icon_position = _icon_position_to_proto(icon_position)
+
+    if normalized_shortcut is not None:
+        proto.shortcut = normalized_shortcut
+
+
+def _enqueue_with_width(
+    dg: DeltaGenerator, element_type: str, proto: Any, width: Width
+) -> DeltaGenerator:
+    validate_width(width, allow_content=True)
+    layout_config = LayoutConfig(width=width)
+    return dg._enqueue(element_type, proto, layout_config=layout_config)
 
 
 @dataclass
@@ -352,15 +412,9 @@ class ButtonMixin:
         key = to_key(key)
         ctx = get_script_run_ctx()
 
-        if use_container_width is not None:
-            width = "stretch" if use_container_width else "content"
+        width = _coerce_width_from_use_container_width(width, use_container_width)
 
-        # Checks whether the entered button type is one of the allowed options
-        if type not in {"primary", "secondary", "tertiary"}:
-            raise StreamlitAPIException(
-                'The type argument to st.button must be "primary", "secondary", or "tertiary". '
-                f'\nThe argument passed was "{type}".'
-            )
+        _validate_button_type(type, "st.button")
 
         normalized_icon_position = _normalize_icon_position(icon_position, "st.button")
 
@@ -733,14 +787,9 @@ class ButtonMixin:
         """
         ctx = get_script_run_ctx()
 
-        if use_container_width is not None:
-            width = "stretch" if use_container_width else "content"
+        width = _coerce_width_from_use_container_width(width, use_container_width)
 
-        if type not in {"primary", "secondary", "tertiary"}:
-            raise StreamlitAPIException(
-                'The type argument to st.download_button must be "primary", "secondary", or "tertiary". \n'
-                f'The argument passed was "{type}".'
-            )
+        _validate_button_type(type, "st.download_button")
 
         normalized_icon_position = _normalize_icon_position(
             icon_position, "st.download_button"
@@ -914,19 +963,13 @@ class ButtonMixin:
            height: 200px
 
         """
-        # Checks whether the entered button type is one of the allowed options - either "primary" or "secondary"
-        if type not in {"primary", "secondary", "tertiary"}:
-            raise StreamlitAPIException(
-                'The type argument to st.link_button must be "primary", "secondary", or "tertiary". '
-                f'\nThe argument passed was "{type}".'
-            )
+        _validate_button_type(type, "st.link_button")
 
         normalized_icon_position = _normalize_icon_position(
             icon_position, "st.link_button"
         )
 
-        if use_container_width is not None:
-            width = "stretch" if use_container_width else "content"
+        width = _coerce_width_from_use_container_width(width, use_container_width)
 
         return self._link_button(
             label=label,
@@ -1115,8 +1158,7 @@ class ButtonMixin:
             height: 350px
 
         """
-        if use_container_width is not None:
-            width = "stretch" if use_container_width else "content"
+        width = _coerce_width_from_use_container_width(width, use_container_width)
 
         if in_sidebar(self.dg):
             # Sidebar page links should always be stretch width.
@@ -1165,9 +1207,7 @@ class ButtonMixin:
             else cast("WidgetCallback", on_click)
         )
 
-        normalized_shortcut: str | None = None
-        if shortcut is not None:
-            normalized_shortcut = normalize_shortcut(shortcut)
+        normalized_shortcut = _normalize_shortcut(shortcut)
 
         check_widget_policies(
             self.dg,
@@ -1200,28 +1240,25 @@ class ButtonMixin:
 
         download_button_proto = DownloadButtonProto()
         download_button_proto.id = element_id
-        download_button_proto.label = label
         download_button_proto.default = False
-        download_button_proto.type = type
         marshall_file(
             self.dg._get_delta_path_str(), data, download_button_proto, mime, file_name
         )
-        download_button_proto.disabled = disabled
-
-        if help is not None:
-            download_button_proto.help = dedent(help)
-
-        if icon is not None:
-            download_button_proto.icon = validate_icon_or_emoji(icon)
-        download_button_proto.icon_position = _icon_position_to_proto(icon_position)
+        _set_buttonlike_proto_fields(
+            download_button_proto,
+            label=label,
+            button_type=type,
+            disabled=disabled,
+            help=help,
+            icon=icon,
+            icon_position=icon_position,
+            normalized_shortcut=normalized_shortcut,
+        )
 
         if on_click == "ignore":
             download_button_proto.ignore_rerun = True
         else:
             download_button_proto.ignore_rerun = False
-
-        if normalized_shortcut is not None:
-            download_button_proto.shortcut = normalized_shortcut
 
         serde = ButtonSerde()
 
@@ -1236,11 +1273,7 @@ class ButtonMixin:
             value_type="trigger_value",
         )
 
-        validate_width(width, allow_content=True)
-        layout_config = LayoutConfig(width=width)
-        self.dg._enqueue(
-            "download_button", download_button_proto, layout_config=layout_config
-        )
+        _enqueue_with_width(self.dg, "download_button", download_button_proto, width)
         return button_state.value
 
     def _link_button(
@@ -1257,9 +1290,7 @@ class ButtonMixin:
         shortcut: str | None = None,
     ) -> DeltaGenerator:
         link_button_proto = LinkButtonProto()
-        normalized_shortcut: str | None = None
-        if shortcut is not None:
-            normalized_shortcut = normalize_shortcut(shortcut)
+        normalized_shortcut = _normalize_shortcut(shortcut)
 
         if normalized_shortcut is not None:
             # We only register the element ID if a shortcut is provide.
@@ -1278,26 +1309,18 @@ class ButtonMixin:
                 width=width,
                 shortcut=normalized_shortcut,
             )
-        link_button_proto.label = label
         link_button_proto.url = url
-        link_button_proto.type = type
-        link_button_proto.disabled = disabled
-
-        if help is not None:
-            link_button_proto.help = dedent(help)
-
-        if icon is not None:
-            link_button_proto.icon = validate_icon_or_emoji(icon)
-        link_button_proto.icon_position = _icon_position_to_proto(icon_position)
-
-        if normalized_shortcut is not None:
-            link_button_proto.shortcut = normalized_shortcut
-
-        validate_width(width, allow_content=True)
-        layout_config = LayoutConfig(width=width)
-        return self.dg._enqueue(
-            "link_button", link_button_proto, layout_config=layout_config
+        _set_buttonlike_proto_fields(
+            link_button_proto,
+            label=label,
+            button_type=type,
+            disabled=disabled,
+            help=help,
+            icon=icon,
+            icon_position=icon_position,
+            normalized_shortcut=normalized_shortcut,
         )
+        return _enqueue_with_width(self.dg, "link_button", link_button_proto, width)
 
     def _page_link(
         self,
@@ -1417,9 +1440,7 @@ class ButtonMixin:
     ) -> bool:
         key = to_key(key)
 
-        normalized_shortcut: str | None = None
-        if shortcut is not None:
-            normalized_shortcut = normalize_shortcut(shortcut)
+        normalized_shortcut = _normalize_shortcut(shortcut)
 
         check_widget_policies(
             self.dg,
@@ -1464,22 +1485,19 @@ class ButtonMixin:
 
         button_proto = ButtonProto()
         button_proto.id = element_id
-        button_proto.label = label
         button_proto.default = False
         button_proto.is_form_submitter = is_form_submitter
         button_proto.form_id = form_id
-        button_proto.type = type
-        button_proto.disabled = disabled
-
-        if help is not None:
-            button_proto.help = dedent(help)
-
-        if icon is not None:
-            button_proto.icon = validate_icon_or_emoji(icon)
-        button_proto.icon_position = _icon_position_to_proto(icon_position)
-
-        if normalized_shortcut is not None:
-            button_proto.shortcut = normalized_shortcut
+        _set_buttonlike_proto_fields(
+            button_proto,
+            label=label,
+            button_type=type,
+            disabled=disabled,
+            help=help,
+            icon=icon,
+            icon_position=icon_position,
+            normalized_shortcut=normalized_shortcut,
+        )
 
         serde = ButtonSerde()
 
@@ -1497,9 +1515,7 @@ class ButtonMixin:
         if ctx:
             save_for_app_testing(ctx, element_id, button_state.value)
 
-        validate_width(width, allow_content=True)
-        layout_config = LayoutConfig(width=width)
-        self.dg._enqueue("button", button_proto, layout_config=layout_config)
+        _enqueue_with_width(self.dg, "button", button_proto, width)
 
         return button_state.value
 
