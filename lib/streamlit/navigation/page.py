@@ -169,6 +169,56 @@ class StreamlitPage:
 
     """
 
+    def _resolve_page_source(
+        self, page: str | Path | Callable[[], None], main_path: Path
+    ) -> None:
+        if isinstance(page, str):
+            page = Path(page)
+        if isinstance(page, Path):
+            page = (main_path / page).resolve()
+
+            if not page.is_file():
+                raise StreamlitAPIException(
+                    f"Unable to create Page. The file `{page.name}` could not be found."
+                )
+
+    def _infer_name_and_icon(
+        self, page: str | Path | Callable[[], None], title: str | None = None
+    ) -> tuple[str, str]:
+        inferred_name = ""
+        inferred_icon = ""
+        if isinstance(page, Path):
+            inferred_icon, inferred_name = page_icon_and_name(page)
+        elif hasattr(page, "__name__"):
+            inferred_name = str(page.__name__)
+        elif title is None:
+            # At this point, we know the page is not a string or a path, so it
+            # must be a callable. We expect it to have a __name__ attribute,
+            # but in special cases (e.g. a callable class instance), one may
+            # not exist. In that case, we should inform the user the title is
+            # mandatory.
+            raise StreamlitAPIException(
+                "Cannot infer page title for Callable.. Set the `title=` keyword argument."
+            )
+
+        self._title: str = title or inferred_name.replace("_", " ")
+        return inferred_icon, inferred_name
+
+    def _validate_url_path(
+        self, url_path: str | None = None, default: bool = False
+    ) -> None:
+        if url_path is not None:
+            if url_path.strip() == "" and not default:
+                raise StreamlitAPIException(
+                    "The URL path cannot be an empty string unless the page is the default page."
+                )
+
+            self._url_path: str = url_path.strip("/")
+            if "/" in self._url_path:
+                raise StreamlitAPIException(
+                    "The URL path cannot contain a nested path (e.g. foo/bar)."
+                )
+
     def __init__(
         self,
         page: str | Path | Callable[[], None],
@@ -184,37 +234,19 @@ class StreamlitPage:
 
         ctx = get_script_run_ctx()
         if not ctx:
+            # Setting other default values for the page instead of partial initialization with _default.
+            self._page = ""
+            self._title = ""
+            self._icon = ""
+            self._url_path = ""
+            self._can_be_called = False
             return
 
         main_path = ctx.pages_manager.main_script_parent
-        if isinstance(page, str):
-            page = Path(page)
-        if isinstance(page, Path):
-            page = (main_path / page).resolve()
-
-            if not page.is_file():
-                raise StreamlitAPIException(
-                    f"Unable to create Page. The file `{page.name}` could not be found."
-                )
-
-        inferred_name = ""
-        inferred_icon = ""
-        if isinstance(page, Path):
-            inferred_icon, inferred_name = page_icon_and_name(page)
-        elif hasattr(page, "__name__"):
-            inferred_name = str(page.__name__)
-        elif title is None:
-            # At this point, we know the page is not a string or a path, so it
-            # must be a callable. We expect it to have a __name__ attribute,
-            # but in special cases (e.g. a callable class instance), one may
-            # not exist. In that case, we should inform the user the title is
-            # mandatory.
-            raise StreamlitAPIException(
-                "Cannot infer page title for Callable. Set the `title=` keyword argument."
-            )
-
+        self._resolve_page_source(page, main_path)
         self._page: Path | Callable[[], None] = page
-        self._title: str = title or inferred_name.replace("_", " ")
+
+        inferred_icon, inferred_name = self._infer_name_and_icon(page, title)
 
         if icon is not None:
             # validate user provided icon.
@@ -227,17 +259,7 @@ class StreamlitPage:
             )
 
         self._url_path: str = inferred_name
-        if url_path is not None:
-            if url_path.strip() == "" and not default:
-                raise StreamlitAPIException(
-                    "The URL path cannot be an empty string unless the page is the default page."
-                )
-
-            self._url_path = url_path.strip("/")
-            if "/" in self._url_path:
-                raise StreamlitAPIException(
-                    "The URL path cannot contain a nested path (e.g. foo/bar)."
-                )
+        self._validate_url_path(url_path, default)
 
         if self._icon:
             validate_icon_or_emoji(self._icon)
