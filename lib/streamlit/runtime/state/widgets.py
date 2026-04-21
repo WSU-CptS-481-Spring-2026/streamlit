@@ -49,8 +49,6 @@ def register_widget(
     value_type: ValueFieldName,
     presenter: WidgetValuePresenter | None = None,
     bind: BindOption = None,
-    # TODO(query-params): Remove formatted_options once all selection widgets use
-    # string-based wire formats (string_value/string_array_value).
     formatted_options: list[str] | None = None,
 ) -> RegisterWidgetResult[T]:
     """Register a widget with Streamlit, and return its current value.
@@ -120,22 +118,11 @@ def register_widget(
         For both paths a widget return value is provided, allowing the widgets
         to be used in a non-streamlit setting.
     """
-    if on_change_handler is not None and callbacks is not None:
-        raise StreamlitAPIException(
-            "Cannot provide both `on_change` and `callbacks` to a widget."
-        )
+    # Extracted validation logic (reduces complexity)
+    _validate_callbacks(callbacks, on_change_handler)
+    _validate_bind_config(bind, element_id)
 
-    # Validate that widget with bind="query-params" has a provided key
-    if bind == "query-params":
-        user_key = user_key_from_element_id(element_id)
-        if user_key is None:
-            raise StreamlitAPIException(
-                "When using bind='query-params', the widget must have a unique 'key' "
-                "parameter specified. This 'key' will be used as the name of the "
-                "query parameter."
-            )
-
-    # Create the widget's updated metadata, and register it with session_state.
+    # Metadata construction is now clearer and easier to read
     metadata = WidgetMetadata(
         element_id,
         deserializer,
@@ -150,6 +137,7 @@ def register_widget(
         bind=bind,
         formatted_options=formatted_options,
     )
+
     return register_widget_from_metadata(metadata, ctx)
 
 
@@ -160,11 +148,16 @@ def register_widget_from_metadata(
     """Register a widget and return its value, using an already constructed
     `WidgetMetadata`.
 
+      Handles both:
+    - Bare script execution (no Streamlit runtime)
+    - Normal Streamlit execution via session state
+
     This is split out from `register_widget` to allow caching code to replay
     widgets by saving and reusing the completed metadata.
 
     See `register_widget` for details on what this returns.
     """
+
     if ctx is None:
         # Early-out if we don't have a script run context (which probably means
         # we're running as a "bare" Python script, and not via `streamlit run`).
@@ -174,3 +167,21 @@ def register_widget_from_metadata(
     user_key = user_key_from_element_id(widget_id)
 
     return ctx.session_state.register_widget(metadata, user_key)
+
+
+def _validate_callbacks(callbacks, on_change_handler):
+    if on_change_handler is not None and callbacks is not None:
+        raise StreamlitAPIException(
+            "Cannot provide both `on_change` and `callbacks` to a widget."
+        )
+
+
+def _validate_bind_config(bind, element_id):
+    if bind == "query-params":
+        user_key = user_key_from_element_id(element_id)
+        if user_key is None:
+            raise StreamlitAPIException(
+                "When using bind='query-params', the widget must have a unique 'key' "
+                "parameter specified. This 'key' will be used as the name of the "
+                "query parameter."
+            )
