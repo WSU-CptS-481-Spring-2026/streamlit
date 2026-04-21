@@ -21,7 +21,7 @@ import { uniqueId } from "lodash-es"
 
 import { Element, TextArea as TextAreaProto } from "@streamlit/protobuf"
 
-import { getBorderColor } from "~lib/components/shared/Base/styled-components"
+import { getInputBorderStyles } from "~lib/components/shared/Base/styled-components"
 import InputInstructions from "~lib/components/shared/InputInstructions/InputInstructions"
 import {
   WidgetLabel,
@@ -263,18 +263,12 @@ const TextArea: FC<Props> = ({
               "data-testid": "stTextAreaRootElement",
             },
             style: ({ $isFocused }: { $isFocused: boolean }) => {
-              const borderColor = getBorderColor(theme.colors, $isFocused)
               return {
-                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                borderLeftWidth: theme.sizes.borderWidth,
-                borderRightWidth: theme.sizes.borderWidth,
-                borderTopWidth: theme.sizes.borderWidth,
-                borderBottomWidth: theme.sizes.borderWidth,
-
-                borderTopColor: borderColor,
-                borderRightColor: borderColor,
-                borderBottomColor: borderColor,
-                borderLeftColor: borderColor,
+                ...getInputBorderStyles(
+                  theme.sizes.borderWidth,
+                  theme.colors,
+                  $isFocused
+                ),
 
                 flexGrow: 1,
               }

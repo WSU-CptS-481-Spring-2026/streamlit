@@ -33,7 +33,10 @@ import { DateInput as DateInputProto } from "@streamlit/protobuf"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
 import { LibConfigContext } from "~lib/components/core/LibConfigContext"
-import { getBorderColor } from "~lib/components/shared/Base/styled-components"
+import {
+  getClearIconSvgStyle,
+  getInputBorderStyles,
+} from "~lib/components/shared/Base/styled-components"
 import Icon from "~lib/components/shared/Icon"
 import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import Tooltip, { Placement } from "~lib/components/shared/Tooltip"
@@ -399,19 +402,13 @@ function DateInput({
                 },
                 Root: {
                   style: ({ $isFocused }: { $isFocused: boolean }) => {
-                    const borderColor = getBorderColor(colors, $isFocused)
                     return {
-                      // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                      borderLeftWidth: sizes.borderWidth,
-                      borderRightWidth: sizes.borderWidth,
-                      borderTopWidth: sizes.borderWidth,
-                      borderBottomWidth: sizes.borderWidth,
+                      ...getInputBorderStyles(
+                        sizes.borderWidth,
+                        colors,
+                        $isFocused
+                      ),
                       paddingRight: spacing.twoXS,
-
-                      borderTopColor: borderColor,
-                      borderRightColor: borderColor,
-                      borderBottomColor: borderColor,
-                      borderLeftColor: borderColor,
 
                       // Baseweb has an error prop for the input, but its coloring doesn't reconcile
                       // with our dark theme - we handle error state coloring manually here
@@ -425,16 +422,7 @@ function DateInput({
                   props: {
                     overrides: {
                       Svg: {
-                        style: {
-                          color: colors.grayTextColor,
-                          // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
-                          padding: spacing.threeXS,
-                          height: sizes.clearIconSize,
-                          width: sizes.clearIconSize,
-                          ":hover": {
-                            fill: colors.bodyText,
-                          },
-                        },
+                        style: getClearIconSvgStyle(theme),
                       },
                     },
                   },

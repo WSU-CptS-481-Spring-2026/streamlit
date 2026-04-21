@@ -28,7 +28,10 @@ import { ChevronDown } from "baseui/icon"
 import { type OnChangeParams, Select as UISelect } from "baseui/select"
 
 import IsSidebarContext from "~lib/components/core/IsSidebarContext"
-import { getBorderColor } from "~lib/components/shared/Base/styled-components"
+import {
+  getClearIconSvgStyle,
+  getInputBorderStyles,
+} from "~lib/components/shared/Base/styled-components"
 import VirtualDropdown from "~lib/components/shared/Dropdown/VirtualDropdown"
 import {
   WidgetLabel,
@@ -176,35 +179,20 @@ const Selectbox: FC<Props> = ({
             props: {
               overrides: {
                 Svg: {
-                  style: {
-                    color: theme.colors.grayTextColor,
-                    // Setting this width and height makes the clear-icon align with dropdown arrows
-                    padding: theme.spacing.threeXS,
-                    height: theme.sizes.clearIconSize,
-                    width: theme.sizes.clearIconSize,
-                    ":hover": {
-                      fill: theme.colors.bodyText,
-                    },
-                  },
+                  style: getClearIconSvgStyle(theme),
                 },
               },
             },
           },
           ControlContainer: {
             style: ({ $isFocused }: { $isFocused: boolean }) => {
-              const borderColor = getBorderColor(theme.colors, $isFocused)
               return {
                 height: theme.sizes.minElementHeight,
-                // Baseweb requires long-hand props, short-hand leads to weird bugs & warnings.
-                borderLeftWidth: theme.sizes.borderWidth,
-                borderRightWidth: theme.sizes.borderWidth,
-                borderTopWidth: theme.sizes.borderWidth,
-                borderBottomWidth: theme.sizes.borderWidth,
-
-                borderTopColor: borderColor,
-                borderRightColor: borderColor,
-                borderBottomColor: borderColor,
-                borderLeftColor: borderColor,
+                ...getInputBorderStyles(
+                  theme.sizes.borderWidth,
+                  theme.colors,
+                  $isFocused
+                ),
               }
             },
           },

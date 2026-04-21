@@ -18,6 +18,7 @@ import styled from "@emotion/styled"
 
 import { Metric as MetricProto } from "@streamlit/protobuf"
 
+import { getLabelVisibilityStyles } from "~lib/components/widgets/BaseWidget/labelVisibilityStyles"
 import { StyledWidgetLabel } from "~lib/components/widgets/BaseWidget/styled-components"
 import { LabelVisibilityOptions } from "~lib/util/utils"
 
@@ -82,11 +83,12 @@ export const StyledMetricLabelText = styled(
   StyledWidgetLabel
 )<StyledMetricLabelTextProps>(({ visibility }) => ({
   marginBottom: 0,
-  display: visibility === LabelVisibilityOptions.Collapsed ? "none" : "grid",
+  ...getLabelVisibilityStyles({
+    visibility,
+    visibleDisplay: "grid",
+  }),
   gridTemplateColumns:
     visibility === LabelVisibilityOptions.Collapsed ? "initial" : "auto 1fr",
-  visibility:
-    visibility === LabelVisibilityOptions.Hidden ? "hidden" : "visible",
 }))
 
 export const StyledMetricValueText = styled.div(({ theme }) => ({

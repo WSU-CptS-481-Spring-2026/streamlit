@@ -24,6 +24,7 @@ import {
 
 import { Checkbox as CheckboxProto } from "@streamlit/protobuf"
 
+import { getLonghandBorderStyles } from "~lib/components/shared/Base/styled-components"
 import StreamlitMarkdown from "~lib/components/shared/StreamlitMarkdown"
 import { Placement } from "~lib/components/shared/Tooltip"
 import { WidgetLabelHelpIconInline } from "~lib/components/widgets/BaseWidget"
@@ -177,18 +178,10 @@ function Checkbox({
                 marginBottom: 0,
                 boxShadow:
                   $isFocusVisible && $checked ? theme.shadows.focusRing : "",
-                // This is painfully verbose, but baseweb seems to internally
-                // use the long-hand version, which means we can't use the
-                // shorthand names here as if we do we'll end up with warn
-                // logs spamming us every time a checkbox is rendered.
-                borderLeftWidth: sizes.borderWidth,
-                borderRightWidth: sizes.borderWidth,
-                borderTopWidth: sizes.borderWidth,
-                borderBottomWidth: sizes.borderWidth,
-                borderLeftColor: borderColor,
-                borderRightColor: borderColor,
-                borderTopColor: borderColor,
-                borderBottomColor: borderColor,
+                // Can't use shorthand names as baseweb internally uses long-hand,
+                // which causes warnings every time a checkbox is rendered
+                // if we use shorthand here.
+                ...getLonghandBorderStyles(sizes.borderWidth, borderColor),
               }
             },
           },

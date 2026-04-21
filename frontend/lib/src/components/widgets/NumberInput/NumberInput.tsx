@@ -30,6 +30,7 @@ import { uniqueId } from "lodash-es"
 
 import { NumberInput as NumberInputProto } from "@streamlit/protobuf"
 
+import { getClearIconSvgStyle } from "~lib/components/shared/Base/styled-components"
 import Icon, { DynamicIcon, isMaterialIcon } from "~lib/components/shared/Icon"
 import InputInstructions from "~lib/components/shared/InputInstructions/InputInstructions"
 import {
@@ -402,16 +403,7 @@ const NumberInput: React.FC<Props> = ({
               props: {
                 overrides: {
                   Svg: {
-                    style: {
-                      color: theme.colors.grayTextColor,
-                      // setting this width and height makes the clear-icon align with dropdown arrows of other input fields
-                      padding: theme.spacing.threeXS,
-                      height: theme.sizes.clearIconSize,
-                      width: theme.sizes.clearIconSize,
-                      ":hover": {
-                        fill: theme.colors.bodyText,
-                      },
-                    },
+                    style: getClearIconSvgStyle(theme),
                   },
                 },
               },

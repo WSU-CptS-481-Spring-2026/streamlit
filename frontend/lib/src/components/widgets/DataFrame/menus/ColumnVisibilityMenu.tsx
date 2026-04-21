@@ -23,6 +23,7 @@ import {
 } from "baseui/checkbox"
 import { PLACEMENT, TRIGGER_TYPE, Popover as UIPopover } from "baseui/popover"
 
+import { getLonghandBorderStyles } from "~lib/components/shared/Base/styled-components"
 import { BaseColumn } from "~lib/components/widgets/DataFrame/columns"
 import { useEmotionTheme } from "~lib/hooks/useEmotionTheme"
 import { hasLightBackgroundColor } from "~lib/theme"
@@ -118,14 +119,7 @@ const CheckboxItem: React.FC<CheckboxItemProps> = ({
                 $isFocusVisible && ($checked || $isIndeterminate)
                   ? theme.shadows.focusRing
                   : "",
-              borderLeftWidth: theme.sizes.borderWidth,
-              borderRightWidth: theme.sizes.borderWidth,
-              borderTopWidth: theme.sizes.borderWidth,
-              borderBottomWidth: theme.sizes.borderWidth,
-              borderLeftColor: borderColor,
-              borderRightColor: borderColor,
-              borderTopColor: borderColor,
-              borderBottomColor: borderColor,
+              ...getLonghandBorderStyles(theme.sizes.borderWidth, borderColor),
             }
           },
         },
