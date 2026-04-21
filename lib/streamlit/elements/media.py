@@ -496,6 +496,98 @@ def _marshall_av_media(
     proto.url = file_url
 
 
+# Helper functions
+def _validate_video_times(start_time: int, end_time: int | None) -> None:
+    if start_time < 0 or (end_time is not None and end_time <= start_time):
+        raise StreamlitAPIException("Invalid start_time and end_time combination.")
+
+
+def _build_width_config(width: WidthWithoutContent) -> WidthConfig:
+    width_config = WidthConfig()
+    if isinstance(width, int):
+        width_config.pixel_width = width
+    else:
+        width_config.use_stretch = True
+    return width_config
+
+
+def _handle_video_source(
+    coordinates: str,
+    proto: VideoProto,
+    data: MediaData,
+    mimetype: str,
+    subtitles: SubtitleData,
+) -> None:
+    if isinstance(data, Path):
+        data = str(data)
+
+    if isinstance(data, str) and url_util.is_url(
+        data, allowed_schemas=("http", "https", "data")
+    ):
+        youtube_url = _reshape_youtube_url(data)
+        if youtube_url:
+            proto.url = youtube_url
+            proto.type = VideoProto.Type.YOUTUBE_IFRAME
+            if subtitles:
+                raise StreamlitAPIException(
+                    "Subtitles are not supported for YouTube videos."
+                )
+        else:
+            proto.url = data
+    else:
+        _marshall_av_media(coordinates, proto, data, mimetype)
+
+
+def _process_subtitles(
+    proto: VideoProto,
+    coordinates: str,
+    subtitles: SubtitleData,
+) -> None:
+    if not subtitles:
+        return
+
+    subtitle_items: list[tuple[str, str | Path | bytes | io.BytesIO]] = []
+
+    if isinstance(subtitles, (str, bytes, io.BytesIO, Path)):
+        subtitle_items.append(("default", subtitles))
+    elif isinstance(subtitles, dict):
+        subtitle_items.extend(subtitles.items())
+    else:
+        raise StreamlitAPIException(
+            f"Unsupported data type for subtitles: {type(subtitles)}."
+        )
+
+    for label, subtitle_data in subtitle_items:
+        sub = proto.subtitles.add()
+        sub.label = label or ""
+        subtitle_coordinates = f"{coordinates}[subtitle{label}]"
+
+        try:
+            sub.url = process_subtitle_data(subtitle_coordinates, subtitle_data, label)
+        except (TypeError, ValueError) as err:
+            raise StreamlitAPIException(f"Failed to process subtitle: {label}") from err
+
+
+def _handle_audio_source(
+    coordinates: str,
+    proto: AudioProto,
+    data: MediaData,
+    mimetype: str,
+    sample_rate: int | None,
+) -> None:
+    if isinstance(data, Path):
+        data = str(data)
+
+    if isinstance(data, str) and url_util.is_url(
+        data, allowed_schemas=("http", "https", "data")
+    ):
+        proto.url = data
+    else:
+        data = _maybe_convert_to_wav_bytes(data, sample_rate)
+        _marshall_av_media(coordinates, proto, data, mimetype)
+
+
+# refactoring here
 def marshall_video(
     dg: DeltaGenerator,
     coordinates: str,
@@ -559,83 +651,25 @@ def marshall_video(
           available space in its container.
     """
 
-    if start_time < 0 or (end_time is not None and end_time <= start_time):
-        raise StreamlitAPIException("Invalid start_time and end_time combination.")
+    _validate_video_times(start_time, end_time)
 
     proto.start_time = start_time
     proto.muted = muted
+    proto.loop = loop
 
     if end_time is not None:
         proto.end_time = end_time
-    proto.loop = loop
 
-    width_config = WidthConfig()
-    if isinstance(width, int):
-        width_config.pixel_width = width
-    else:
-        width_config.use_stretch = True
-    proto.width_config.CopyFrom(width_config)
-
-    # "type" distinguishes between YouTube and non-YouTube links
+    proto.width_config.CopyFrom(_build_width_config(width))
     proto.type = VideoProto.Type.NATIVE
 
-    if isinstance(data, Path):
-        data = str(data)  # Convert Path to string
-
-    if isinstance(data, str) and url_util.is_url(
-        data, allowed_schemas=("http", "https", "data")
-    ):
-        if youtube_url := _reshape_youtube_url(data):
-            proto.url = youtube_url
-            proto.type = VideoProto.Type.YOUTUBE_IFRAME
-            if subtitles:
-                raise StreamlitAPIException(
-                    "Subtitles are not supported for YouTube videos."
-                )
-        else:
-            proto.url = data
-    else:
-        _marshall_av_media(coordinates, proto, data, mimetype)
-
-    if subtitles:
-        subtitle_items: list[tuple[str, str | Path | bytes | io.BytesIO]] = []
-
-        # Single subtitle
-        if isinstance(subtitles, (str, bytes, io.BytesIO, Path)):
-            subtitle_items.append(("default", subtitles))
-        # Multiple subtitles
-        elif isinstance(subtitles, dict):
-            subtitle_items.extend(subtitles.items())
-        else:
-            raise StreamlitAPIException(
-                f"Unsupported data type for subtitles: {type(subtitles)}. "
-                f"Only str (file paths) and dict are supported."
-            )
-
-        for label, subtitle_data in subtitle_items:
-            sub = proto.subtitles.add()
-            sub.label = label or ""
-
-            # Coordinates used in media_file_manager to identify the place of
-            # element, in case of subtitle, we use same video coordinates
-            # with suffix.
-            # It is not aligned with common coordinates format, but in
-            # media_file_manager we use it just as unique identifier, so it is fine.
-            subtitle_coordinates = f"{coordinates}[subtitle{label}]"
-            try:
-                sub.url = process_subtitle_data(
-                    subtitle_coordinates, subtitle_data, label
-                )
-            except (TypeError, ValueError) as original_err:
-                raise StreamlitAPIException(
-                    f"Failed to process the provided subtitle: {label}"
-                ) from original_err
+    _handle_video_source(coordinates, proto, data, mimetype, subtitles)
+    _process_subtitles(proto, coordinates, subtitles)
 
     if autoplay:
-        proto.autoplay = autoplay
+        proto.autoplay = True
         proto.id = compute_and_register_element_id(
             "video",
-            # video does not yet allow setting a user-defined key
             user_key=None,
             key_as_main_identity=False,
             dg=dg,
@@ -757,6 +791,7 @@ def _maybe_convert_to_wav_bytes(data: MediaData, sample_rate: int | None) -> Med
     return data
 
 
+# refactor here
 def marshall_audio(
     dg: DeltaGenerator,
     coordinates: str,
@@ -803,30 +838,17 @@ def marshall_audio(
     """
 
     proto.start_time = start_time
-    if end_time is not None:
-        proto.end_time = end_time
     proto.loop = loop
 
-    width_config = WidthConfig()
-    if isinstance(width, int):
-        width_config.pixel_width = width
-    else:
-        width_config.use_stretch = True
-    proto.width_config.CopyFrom(width_config)
+    if end_time is not None:
+        proto.end_time = end_time
 
-    if isinstance(data, Path):
-        data = str(data)  # Convert Path to string
+    proto.width_config.CopyFrom(_build_width_config(width))
 
-    if isinstance(data, str) and url_util.is_url(
-        data, allowed_schemas=("http", "https", "data")
-    ):
-        proto.url = data
-    else:
-        data = _maybe_convert_to_wav_bytes(data, sample_rate)
-        _marshall_av_media(coordinates, proto, data, mimetype)
+    _handle_audio_source(coordinates, proto, data, mimetype, sample_rate)
 
     if autoplay:
-        proto.autoplay = autoplay
+        proto.autoplay = True
         proto.id = compute_and_register_element_id(
             "audio",
             user_key=None,

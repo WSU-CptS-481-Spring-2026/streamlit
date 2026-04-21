@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 from parameterized import parameterized
+from unittest.mock import patch
 
 import streamlit as st
 from streamlit.errors import StreamlitAPIException
@@ -66,6 +67,19 @@ class PdfTest(DeltaGeneratorTestCase):
         b"%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\nxref\n0 1\n0000000000 65535"
         b"f \ntrailer\n<<\n/Size 1\n/Root 1 0 R\n>>\nstartxref\n9\n%%EOF"
     )
+
+@patch("streamlit.elements.pdf._get_pdf_component")
+def test_pdf_with_find_and_find_query(self, mock_get_component):
+    mock_get_component.return_value = lambda **kwargs: None
+
+    url = "https://example.com/fake-document.pdf"
+    st.pdf(url, find=True, findQuery="Intro")
+
+    delta = self.get_delta_from_queue()
+    pdf_proto = delta.new_element.pdf
+
+    assert pdf_proto.find is True
+    assert pdf_proto.find_query == "Intro"
 
     def test_pdf_url(self):
         """Test PDF with URL."""

@@ -21,7 +21,12 @@ import functools
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-from streamlit.proto.RootContainer_pb2 import RootContainer
+try:
+    from streamlit.proto.RootContainer_pb2 import RootContainer
+except ModuleNotFoundError:
+    # Temporary mock class for demo purposes
+    class RootContainer:
+        pass
 
 if TYPE_CHECKING:
     from collections.abc import Callable
